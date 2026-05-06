@@ -14,16 +14,333 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          description: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      delivery_signatures: {
+        Row: {
+          acceptance_text: string | null
+          delivery_id: string
+          id: string
+          signed_at: string
+          signed_by: string | null
+          signer_name: string | null
+          storage_path: string
+        }
+        Insert: {
+          acceptance_text?: string | null
+          delivery_id: string
+          id?: string
+          signed_at?: string
+          signed_by?: string | null
+          signer_name?: string | null
+          storage_path: string
+        }
+        Update: {
+          acceptance_text?: string | null
+          delivery_id?: string
+          id?: string
+          signed_at?: string
+          signed_by?: string | null
+          signer_name?: string | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_signatures_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: true
+            referencedRelation: "vehicle_deliveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      municipalities: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          internal_responsible: string | null
+          name: string
+          zone: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          internal_responsible?: string | null
+          name: string
+          zone?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          internal_responsible?: string | null
+          name?: string
+          zone?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vehicle_deliveries: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          signed_at: string | null
+          status: Database["public"]["Enums"]["delivery_status"]
+          supervisor_id: string | null
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"]
+          supervisor_id?: string | null
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"]
+          supervisor_id?: string | null
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_deliveries_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_evidence: {
+        Row: {
+          bucket: string
+          created_at: string
+          description: string | null
+          file_name: string | null
+          id: string
+          kind: string
+          mime_type: string | null
+          storage_path: string
+          uploaded_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          description?: string | null
+          file_name?: string | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          storage_path: string
+          uploaded_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          description?: string | null
+          file_name?: string | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          storage_path?: string
+          uploaded_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_evidence_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          brand: string
+          color: string | null
+          created_at: string
+          engine_type: string | null
+          fuel: Database["public"]["Enums"]["fuel_type"] | null
+          id: string
+          mileage: number | null
+          model: string
+          municipality_id: string | null
+          observations: string | null
+          plate: string
+          registration_date: string | null
+          responsible_user_id: string | null
+          status: Database["public"]["Enums"]["vehicle_status"]
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          brand: string
+          color?: string | null
+          created_at?: string
+          engine_type?: string | null
+          fuel?: Database["public"]["Enums"]["fuel_type"] | null
+          id?: string
+          mileage?: number | null
+          model: string
+          municipality_id?: string | null
+          observations?: string | null
+          plate: string
+          registration_date?: string | null
+          responsible_user_id?: string | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          brand?: string
+          color?: string | null
+          created_at?: string
+          engine_type?: string | null
+          fuel?: Database["public"]["Enums"]["fuel_type"] | null
+          id?: string
+          mileage?: number | null
+          model?: string
+          municipality_id?: string | null
+          observations?: string | null
+          plate?: string
+          registration_date?: string | null
+          responsible_user_id?: string | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "root" | "gerencia" | "coordinador" | "supervisor"
+      delivery_status:
+        | "borrador"
+        | "evidencias_pendientes"
+        | "pendiente_supervisor"
+        | "pendiente_firma"
+        | "firmado"
+        | "cerrado"
+      fuel_type: "gasolina" | "diesel" | "hibrido" | "electrico" | "glp"
+      vehicle_status: "disponible" | "asignado" | "en_revision" | "baja"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +467,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["root", "gerencia", "coordinador", "supervisor"],
+      delivery_status: [
+        "borrador",
+        "evidencias_pendientes",
+        "pendiente_supervisor",
+        "pendiente_firma",
+        "firmado",
+        "cerrado",
+      ],
+      fuel_type: ["gasolina", "diesel", "hibrido", "electrico", "glp"],
+      vehicle_status: ["disponible", "asignado", "en_revision", "baja"],
+    },
   },
 } as const
