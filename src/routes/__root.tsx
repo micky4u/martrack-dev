@@ -37,6 +37,11 @@ export const Route = createRootRoute({
       { property: "og:title", content: "MarTrack PMV" },
       { property: "og:description", content: "Registro y entrega controlada de vehículos" },
       { property: "og:type", content: "website" },
+      { name: "twitter:title", content: "MarTrack PMV" },
+      { name: "twitter:description", content: "Registro y entrega controlada de vehículos" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/shdvkchQGFbulJmTHDInzJQiS8J2/social-images/social-1778068618978-Captura_de_pantalla_2026-05-05_115958.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/shdvkchQGFbulJmTHDInzJQiS8J2/social-images/social-1778068618978-Captura_de_pantalla_2026-05-05_115958.webp" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       {
