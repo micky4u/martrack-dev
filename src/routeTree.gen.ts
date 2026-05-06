@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppVehiclesIndexRouteImport } from './routes/app.vehicles.index'
+import { Route as AppVehiclesNewRouteImport } from './routes/app.vehicles.new'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -28,34 +31,70 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVehiclesIndexRoute = AppVehiclesIndexRouteImport.update({
+  id: '/vehicles/',
+  path: '/vehicles/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVehiclesNewRoute = AppVehiclesNewRouteImport.update({
+  id: '/vehicles/new',
+  path: '/vehicles/new',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/app': typeof AppRoute
+  '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/': typeof AppIndexRoute
+  '/app/vehicles/new': typeof AppVehiclesNewRoute
+  '/app/vehicles/': typeof AppVehiclesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/app': typeof AppRoute
   '/login': typeof LoginRoute
+  '/app': typeof AppIndexRoute
+  '/app/vehicles/new': typeof AppVehiclesNewRoute
+  '/app/vehicles': typeof AppVehiclesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/app': typeof AppRoute
+  '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/': typeof AppIndexRoute
+  '/app/vehicles/new': typeof AppVehiclesNewRoute
+  '/app/vehicles/': typeof AppVehiclesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/login'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/'
+    | '/app/vehicles/new'
+    | '/app/vehicles/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/login'
-  id: '__root__' | '/' | '/app' | '/login'
+  to: '/' | '/login' | '/app' | '/app/vehicles/new' | '/app/vehicles'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/'
+    | '/app/vehicles/new'
+    | '/app/vehicles/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AppRoute: typeof AppRoute
+  AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
 }
 
@@ -82,12 +121,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/vehicles/': {
+      id: '/app/vehicles/'
+      path: '/vehicles'
+      fullPath: '/app/vehicles/'
+      preLoaderRoute: typeof AppVehiclesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/vehicles/new': {
+      id: '/app/vehicles/new'
+      path: '/vehicles/new'
+      fullPath: '/app/vehicles/new'
+      preLoaderRoute: typeof AppVehiclesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppIndexRoute: typeof AppIndexRoute
+  AppVehiclesNewRoute: typeof AppVehiclesNewRoute
+  AppVehiclesIndexRoute: typeof AppVehiclesIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppIndexRoute: AppIndexRoute,
+  AppVehiclesNewRoute: AppVehiclesNewRoute,
+  AppVehiclesIndexRoute: AppVehiclesIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AppRoute: AppRoute,
+  AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
