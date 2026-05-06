@@ -14,6 +14,6 @@ export async function logAudit(opts: {
     entity_id: opts.entity_id ?? null,
     action: opts.action,
     description: opts.description ?? null,
-    metadata: opts.metadata ?? null,
+    metadata: (opts.metadata ?? null) as never,
   });
 }
