@@ -89,9 +89,16 @@ function VehicleDetail() {
           </div>
           <p className="text-sm text-muted-foreground mt-1">{v.brand} {v.model} · {v.year} · {v.municipalities?.name ?? "Sin ayuntamiento"}</p>
         </div>
-        {canEdit && (
-          <Button onClick={startDelivery}><Plus className="h-4 w-4 mr-1" /> Iniciar entrega</Button>
-        )}
+        <div className="flex gap-2">
+          {canEdit && (
+            <Button asChild variant="outline">
+              <Link to="/app/vehicles/$id/edit" params={{ id }}><Pencil className="h-4 w-4 mr-1" /> Editar</Link>
+            </Button>
+          )}
+          {canEdit && (
+            <Button onClick={startDelivery}><Plus className="h-4 w-4 mr-1" /> Iniciar entrega</Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="info">
