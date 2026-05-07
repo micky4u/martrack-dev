@@ -18,6 +18,7 @@ const items: Item[] = [
   { title: "Ayuntamientos", url: "/app/municipalities", icon: Building2, roles: ["root", "gerencia", "coordinador"] },
   { title: "Entregas", url: "/app/deliveries", icon: ClipboardCheck, roles: ["root", "gerencia", "coordinador", "supervisor"] },
   { title: "Evidencias", url: "/app/evidence", icon: Image, roles: ["root", "gerencia", "coordinador", "supervisor"] },
+  { title: "Empleados", url: "/app/employees", icon: UserCog, roles: ["root", "gerencia", "coordinador"] },
   { title: "Usuarios y roles", url: "/app/users", icon: Users, roles: ["root"] },
   { title: "Auditoría", url: "/app/audit", icon: History, roles: ["root", "gerencia"] },
   { title: "Configuración", url: "/app/settings", icon: Settings, roles: ["root"] },
