@@ -71,6 +71,8 @@ function VehicleDetail() {
     });
     load();
   };
+
+  const startDelivery = async () => {
     if (!user) return;
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
       vehicle_id: id, created_by: user.id, status: "evidencias_pendientes",
