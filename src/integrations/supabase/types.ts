@@ -125,6 +125,7 @@ export type Database = {
           observations: string | null
           phone: string | null
           position: string | null
+          updated_at: string
         }
         Insert: {
           active?: boolean
@@ -138,6 +139,7 @@ export type Database = {
           observations?: string | null
           phone?: string | null
           position?: string | null
+          updated_at?: string
         }
         Update: {
           active?: boolean
@@ -151,6 +153,7 @@ export type Database = {
           observations?: string | null
           phone?: string | null
           position?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
