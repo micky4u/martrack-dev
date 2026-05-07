@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth-context";
-import { Upload, Plus, ArrowLeft } from "lucide-react";
+import { Upload, Plus, ArrowLeft, Pencil, CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
 
