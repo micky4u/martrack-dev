@@ -61,7 +61,16 @@ function VehicleDetail() {
     load();
   };
 
-  const startDelivery = async () => {
+  const updateEvidence = async (ev: any, patch: { description?: string; is_valid?: boolean; active?: boolean }, action: string) => {
+    const before = { description: ev.description, is_valid: ev.is_valid, active: ev.active };
+    await supabase.from("vehicle_evidence").update(patch).eq("id", ev.id);
+    await logAudit({
+      entity_type: "evidence", entity_id: ev.id, action,
+      description: `${ev.file_name}: ${Object.entries(patch).map(([k,v])=>`${k}=${v}`).join(", ")}`,
+      metadata: { before, after: patch } as never,
+    });
+    load();
+  };
     if (!user) return;
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
       vehicle_id: id, created_by: user.id, status: "evidencias_pendientes",
