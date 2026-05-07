@@ -156,22 +156,62 @@ function VehicleDetail() {
               </div>
             </Card>
           )}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {evidence.filter(e=>e.kind==="photo").map(ev => (
-              <a key={ev.id} href={publicUrl(ev.bucket, ev.storage_path)} target="_blank" rel="noreferrer" className="block group">
-                <div className="aspect-square bg-muted rounded overflow-hidden border border-border">
-                  <img src={publicUrl(ev.bucket, ev.storage_path)} alt={ev.file_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {evidence.filter(e=>e.kind==="photo" && e.active !== false).map(ev => (
+              <Card key={ev.id} className="p-2 space-y-2">
+                <a href={publicUrl(ev.bucket, ev.storage_path)} target="_blank" rel="noreferrer">
+                  <div className="aspect-video bg-muted rounded overflow-hidden border border-border">
+                    <img src={publicUrl(ev.bucket, ev.storage_path)} alt={ev.file_name} className="w-full h-full object-cover" />
+                  </div>
+                </a>
+                <div className="flex items-center justify-between gap-1">
+                  <Badge variant="outline" className={ev.is_valid ? "border-success/40 text-success" : "border-destructive/40 text-destructive"}>
+                    {ev.is_valid ? "Válida" : "No válida"}
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground">{new Date(ev.created_at).toLocaleDateString()}</span>
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-1 truncate">{ev.description || ev.file_name}</div>
-              </a>
+                {canEdit ? (
+                  <input
+                    defaultValue={ev.description ?? ""}
+                    placeholder="Descripción…"
+                    className="w-full h-8 px-2 rounded border border-input bg-transparent text-xs"
+                    onBlur={(e) => {
+                      if ((e.target.value || "") !== (ev.description ?? "")) {
+                        updateEvidence(ev, { description: e.target.value || null as any }, "evidencia_actualizada");
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="text-[11px] text-muted-foreground truncate">{ev.description || ev.file_name}</div>
+                )}
+                {canEdit && (
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="outline" className="flex-1 h-7 text-[11px]"
+                      onClick={() => updateEvidence(ev, { is_valid: !ev.is_valid }, "evidencia_actualizada")}>
+                      {ev.is_valid ? <><XCircle className="h-3 w-3 mr-1"/>Marcar no válida</> : <><CheckCircle2 className="h-3 w-3 mr-1"/>Marcar válida</>}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]"
+                      onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </Card>
             ))}
           </div>
-          {evidence.filter(e=>e.kind==="document").length > 0 && (
+          {evidence.filter(e=>e.kind==="document" && e.active !== false).length > 0 && (
             <Card className="p-4">
               <div className="text-xs font-semibold mb-2 uppercase tracking-wider text-muted-foreground">Documentos</div>
               <ul className="space-y-1 text-sm">
-                {evidence.filter(e=>e.kind==="document").map(ev => (
-                  <li key={ev.id}><a href={publicUrl(ev.bucket, ev.storage_path)} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">{ev.file_name}</a></li>
+                {evidence.filter(e=>e.kind==="document" && e.active !== false).map(ev => (
+                  <li key={ev.id} className="flex items-center justify-between gap-2">
+                    <a href={publicUrl(ev.bucket, ev.storage_path)} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">{ev.file_name}</a>
+                    {canEdit && (
+                      <Button size="sm" variant="ghost" onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </li>
                 ))}
               </ul>
             </Card>
