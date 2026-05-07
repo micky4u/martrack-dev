@@ -18,11 +18,17 @@ import { Route as AppUsersIndexRouteImport } from './routes/app.users.index'
 import { Route as AppSettingsIndexRouteImport } from './routes/app.settings.index'
 import { Route as AppMunicipalitiesIndexRouteImport } from './routes/app.municipalities.index'
 import { Route as AppEvidenceIndexRouteImport } from './routes/app.evidence.index'
+import { Route as AppEmployeesIndexRouteImport } from './routes/app.employees.index'
 import { Route as AppDeliveriesIndexRouteImport } from './routes/app.deliveries.index'
 import { Route as AppAuditIndexRouteImport } from './routes/app.audit.index'
 import { Route as AppVehiclesNewRouteImport } from './routes/app.vehicles.new'
 import { Route as AppVehiclesIdRouteImport } from './routes/app.vehicles.$id'
+import { Route as AppMunicipalitiesNewRouteImport } from './routes/app.municipalities.new'
+import { Route as AppMunicipalitiesIdRouteImport } from './routes/app.municipalities.$id'
+import { Route as AppEmployeesNewRouteImport } from './routes/app.employees.new'
+import { Route as AppEmployeesIdRouteImport } from './routes/app.employees.$id'
 import { Route as AppDeliveriesIdRouteImport } from './routes/app.deliveries.$id'
+import { Route as AppVehiclesIdEditRouteImport } from './routes/app.vehicles.$id.edit'
 import { Route as AppDeliveriesIdSignRouteImport } from './routes/app.deliveries.$id.sign'
 
 const LoginRoute = LoginRouteImport.update({
@@ -70,6 +76,11 @@ const AppEvidenceIndexRoute = AppEvidenceIndexRouteImport.update({
   path: '/evidence/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEmployeesIndexRoute = AppEmployeesIndexRouteImport.update({
+  id: '/employees/',
+  path: '/employees/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDeliveriesIndexRoute = AppDeliveriesIndexRouteImport.update({
   id: '/deliveries/',
   path: '/deliveries/',
@@ -90,10 +101,35 @@ const AppVehiclesIdRoute = AppVehiclesIdRouteImport.update({
   path: '/vehicles/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMunicipalitiesNewRoute = AppMunicipalitiesNewRouteImport.update({
+  id: '/municipalities/new',
+  path: '/municipalities/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMunicipalitiesIdRoute = AppMunicipalitiesIdRouteImport.update({
+  id: '/municipalities/$id',
+  path: '/municipalities/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmployeesNewRoute = AppEmployeesNewRouteImport.update({
+  id: '/employees/new',
+  path: '/employees/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmployeesIdRoute = AppEmployeesIdRouteImport.update({
+  id: '/employees/$id',
+  path: '/employees/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDeliveriesIdRoute = AppDeliveriesIdRouteImport.update({
   id: '/deliveries/$id',
   path: '/deliveries/$id',
   getParentRoute: () => AppRoute,
+} as any)
+const AppVehiclesIdEditRoute = AppVehiclesIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => AppVehiclesIdRoute,
 } as any)
 const AppDeliveriesIdSignRoute = AppDeliveriesIdSignRouteImport.update({
   id: '/sign',
@@ -107,32 +143,44 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
   '/app/deliveries/$id': typeof AppDeliveriesIdRouteWithChildren
-  '/app/vehicles/$id': typeof AppVehiclesIdRoute
+  '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/new': typeof AppEmployeesNewRoute
+  '/app/municipalities/$id': typeof AppMunicipalitiesIdRoute
+  '/app/municipalities/new': typeof AppMunicipalitiesNewRoute
+  '/app/vehicles/$id': typeof AppVehiclesIdRouteWithChildren
   '/app/vehicles/new': typeof AppVehiclesNewRoute
   '/app/audit/': typeof AppAuditIndexRoute
   '/app/deliveries/': typeof AppDeliveriesIndexRoute
+  '/app/employees/': typeof AppEmployeesIndexRoute
   '/app/evidence/': typeof AppEvidenceIndexRoute
   '/app/municipalities/': typeof AppMunicipalitiesIndexRoute
   '/app/settings/': typeof AppSettingsIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
   '/app/vehicles/': typeof AppVehiclesIndexRoute
   '/app/deliveries/$id/sign': typeof AppDeliveriesIdSignRoute
+  '/app/vehicles/$id/edit': typeof AppVehiclesIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AppIndexRoute
   '/app/deliveries/$id': typeof AppDeliveriesIdRouteWithChildren
-  '/app/vehicles/$id': typeof AppVehiclesIdRoute
+  '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/new': typeof AppEmployeesNewRoute
+  '/app/municipalities/$id': typeof AppMunicipalitiesIdRoute
+  '/app/municipalities/new': typeof AppMunicipalitiesNewRoute
+  '/app/vehicles/$id': typeof AppVehiclesIdRouteWithChildren
   '/app/vehicles/new': typeof AppVehiclesNewRoute
   '/app/audit': typeof AppAuditIndexRoute
   '/app/deliveries': typeof AppDeliveriesIndexRoute
+  '/app/employees': typeof AppEmployeesIndexRoute
   '/app/evidence': typeof AppEvidenceIndexRoute
   '/app/municipalities': typeof AppMunicipalitiesIndexRoute
   '/app/settings': typeof AppSettingsIndexRoute
   '/app/users': typeof AppUsersIndexRoute
   '/app/vehicles': typeof AppVehiclesIndexRoute
   '/app/deliveries/$id/sign': typeof AppDeliveriesIdSignRoute
+  '/app/vehicles/$id/edit': typeof AppVehiclesIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,16 +189,22 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/app/': typeof AppIndexRoute
   '/app/deliveries/$id': typeof AppDeliveriesIdRouteWithChildren
-  '/app/vehicles/$id': typeof AppVehiclesIdRoute
+  '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/new': typeof AppEmployeesNewRoute
+  '/app/municipalities/$id': typeof AppMunicipalitiesIdRoute
+  '/app/municipalities/new': typeof AppMunicipalitiesNewRoute
+  '/app/vehicles/$id': typeof AppVehiclesIdRouteWithChildren
   '/app/vehicles/new': typeof AppVehiclesNewRoute
   '/app/audit/': typeof AppAuditIndexRoute
   '/app/deliveries/': typeof AppDeliveriesIndexRoute
+  '/app/employees/': typeof AppEmployeesIndexRoute
   '/app/evidence/': typeof AppEvidenceIndexRoute
   '/app/municipalities/': typeof AppMunicipalitiesIndexRoute
   '/app/settings/': typeof AppSettingsIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
   '/app/vehicles/': typeof AppVehiclesIndexRoute
   '/app/deliveries/$id/sign': typeof AppDeliveriesIdSignRoute
+  '/app/vehicles/$id/edit': typeof AppVehiclesIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,32 +214,44 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/'
     | '/app/deliveries/$id'
+    | '/app/employees/$id'
+    | '/app/employees/new'
+    | '/app/municipalities/$id'
+    | '/app/municipalities/new'
     | '/app/vehicles/$id'
     | '/app/vehicles/new'
     | '/app/audit/'
     | '/app/deliveries/'
+    | '/app/employees/'
     | '/app/evidence/'
     | '/app/municipalities/'
     | '/app/settings/'
     | '/app/users/'
     | '/app/vehicles/'
     | '/app/deliveries/$id/sign'
+    | '/app/vehicles/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/app'
     | '/app/deliveries/$id'
+    | '/app/employees/$id'
+    | '/app/employees/new'
+    | '/app/municipalities/$id'
+    | '/app/municipalities/new'
     | '/app/vehicles/$id'
     | '/app/vehicles/new'
     | '/app/audit'
     | '/app/deliveries'
+    | '/app/employees'
     | '/app/evidence'
     | '/app/municipalities'
     | '/app/settings'
     | '/app/users'
     | '/app/vehicles'
     | '/app/deliveries/$id/sign'
+    | '/app/vehicles/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -193,16 +259,22 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/'
     | '/app/deliveries/$id'
+    | '/app/employees/$id'
+    | '/app/employees/new'
+    | '/app/municipalities/$id'
+    | '/app/municipalities/new'
     | '/app/vehicles/$id'
     | '/app/vehicles/new'
     | '/app/audit/'
     | '/app/deliveries/'
+    | '/app/employees/'
     | '/app/evidence/'
     | '/app/municipalities/'
     | '/app/settings/'
     | '/app/users/'
     | '/app/vehicles/'
     | '/app/deliveries/$id/sign'
+    | '/app/vehicles/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -276,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEvidenceIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/employees/': {
+      id: '/app/employees/'
+      path: '/employees'
+      fullPath: '/app/employees/'
+      preLoaderRoute: typeof AppEmployeesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/deliveries/': {
       id: '/app/deliveries/'
       path: '/deliveries'
@@ -304,12 +383,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVehiclesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/municipalities/new': {
+      id: '/app/municipalities/new'
+      path: '/municipalities/new'
+      fullPath: '/app/municipalities/new'
+      preLoaderRoute: typeof AppMunicipalitiesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/municipalities/$id': {
+      id: '/app/municipalities/$id'
+      path: '/municipalities/$id'
+      fullPath: '/app/municipalities/$id'
+      preLoaderRoute: typeof AppMunicipalitiesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/employees/new': {
+      id: '/app/employees/new'
+      path: '/employees/new'
+      fullPath: '/app/employees/new'
+      preLoaderRoute: typeof AppEmployeesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/employees/$id': {
+      id: '/app/employees/$id'
+      path: '/employees/$id'
+      fullPath: '/app/employees/$id'
+      preLoaderRoute: typeof AppEmployeesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/deliveries/$id': {
       id: '/app/deliveries/$id'
       path: '/deliveries/$id'
       fullPath: '/app/deliveries/$id'
       preLoaderRoute: typeof AppDeliveriesIdRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/app/vehicles/$id/edit': {
+      id: '/app/vehicles/$id/edit'
+      path: '/edit'
+      fullPath: '/app/vehicles/$id/edit'
+      preLoaderRoute: typeof AppVehiclesIdEditRouteImport
+      parentRoute: typeof AppVehiclesIdRoute
     }
     '/app/deliveries/$id/sign': {
       id: '/app/deliveries/$id/sign'
@@ -333,13 +447,30 @@ const AppDeliveriesIdRouteWithChildren = AppDeliveriesIdRoute._addFileChildren(
   AppDeliveriesIdRouteChildren,
 )
 
+interface AppVehiclesIdRouteChildren {
+  AppVehiclesIdEditRoute: typeof AppVehiclesIdEditRoute
+}
+
+const AppVehiclesIdRouteChildren: AppVehiclesIdRouteChildren = {
+  AppVehiclesIdEditRoute: AppVehiclesIdEditRoute,
+}
+
+const AppVehiclesIdRouteWithChildren = AppVehiclesIdRoute._addFileChildren(
+  AppVehiclesIdRouteChildren,
+)
+
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppDeliveriesIdRoute: typeof AppDeliveriesIdRouteWithChildren
-  AppVehiclesIdRoute: typeof AppVehiclesIdRoute
+  AppEmployeesIdRoute: typeof AppEmployeesIdRoute
+  AppEmployeesNewRoute: typeof AppEmployeesNewRoute
+  AppMunicipalitiesIdRoute: typeof AppMunicipalitiesIdRoute
+  AppMunicipalitiesNewRoute: typeof AppMunicipalitiesNewRoute
+  AppVehiclesIdRoute: typeof AppVehiclesIdRouteWithChildren
   AppVehiclesNewRoute: typeof AppVehiclesNewRoute
   AppAuditIndexRoute: typeof AppAuditIndexRoute
   AppDeliveriesIndexRoute: typeof AppDeliveriesIndexRoute
+  AppEmployeesIndexRoute: typeof AppEmployeesIndexRoute
   AppEvidenceIndexRoute: typeof AppEvidenceIndexRoute
   AppMunicipalitiesIndexRoute: typeof AppMunicipalitiesIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
@@ -350,10 +481,15 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppDeliveriesIdRoute: AppDeliveriesIdRouteWithChildren,
-  AppVehiclesIdRoute: AppVehiclesIdRoute,
+  AppEmployeesIdRoute: AppEmployeesIdRoute,
+  AppEmployeesNewRoute: AppEmployeesNewRoute,
+  AppMunicipalitiesIdRoute: AppMunicipalitiesIdRoute,
+  AppMunicipalitiesNewRoute: AppMunicipalitiesNewRoute,
+  AppVehiclesIdRoute: AppVehiclesIdRouteWithChildren,
   AppVehiclesNewRoute: AppVehiclesNewRoute,
   AppAuditIndexRoute: AppAuditIndexRoute,
   AppDeliveriesIndexRoute: AppDeliveriesIndexRoute,
+  AppEmployeesIndexRoute: AppEmployeesIndexRoute,
   AppEvidenceIndexRoute: AppEvidenceIndexRoute,
   AppMunicipalitiesIndexRoute: AppMunicipalitiesIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,

@@ -114,24 +114,56 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active: boolean
           created_at: string
+          driving_license: string | null
           email: string | null
           full_name: string | null
+          hire_date: string | null
           id: string
+          municipality_id: string | null
+          observations: string | null
+          phone: string | null
+          position: string | null
+          updated_at: string
         }
         Insert: {
+          active?: boolean
           created_at?: string
+          driving_license?: string | null
           email?: string | null
           full_name?: string | null
+          hire_date?: string | null
           id: string
+          municipality_id?: string | null
+          observations?: string | null
+          phone?: string | null
+          position?: string | null
+          updated_at?: string
         }
         Update: {
+          active?: boolean
           created_at?: string
+          driving_license?: string | null
           email?: string | null
           full_name?: string | null
+          hire_date?: string | null
           id?: string
+          municipality_id?: string | null
+          observations?: string | null
+          phone?: string | null
+          position?: string | null
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -156,6 +188,7 @@ export type Database = {
       }
       vehicle_deliveries: {
         Row: {
+          cancel_reason: string | null
           closed_at: string | null
           created_at: string
           created_by: string | null
@@ -168,6 +201,7 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
+          cancel_reason?: string | null
           closed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -180,6 +214,7 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
+          cancel_reason?: string | null
           closed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -203,11 +238,13 @@ export type Database = {
       }
       vehicle_evidence: {
         Row: {
+          active: boolean
           bucket: string
           created_at: string
           description: string | null
           file_name: string | null
           id: string
+          is_valid: boolean
           kind: string
           mime_type: string | null
           storage_path: string
@@ -215,11 +252,13 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
+          active?: boolean
           bucket: string
           created_at?: string
           description?: string | null
           file_name?: string | null
           id?: string
+          is_valid?: boolean
           kind?: string
           mime_type?: string | null
           storage_path: string
@@ -227,11 +266,13 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
+          active?: boolean
           bucket?: string
           created_at?: string
           description?: string | null
           file_name?: string | null
           id?: string
+          is_valid?: boolean
           kind?: string
           mime_type?: string | null
           storage_path?: string
@@ -339,6 +380,7 @@ export type Database = {
         | "pendiente_firma"
         | "firmado"
         | "cerrado"
+        | "cancelado"
       fuel_type: "gasolina" | "diesel" | "hibrido" | "electrico" | "glp"
       vehicle_status: "disponible" | "asignado" | "en_revision" | "baja"
     }
@@ -476,6 +518,7 @@ export const Constants = {
         "pendiente_firma",
         "firmado",
         "cerrado",
+        "cancelado",
       ],
       fuel_type: ["gasolina", "diesel", "hibrido", "electrico", "glp"],
       vehicle_status: ["disponible", "asignado", "en_revision", "baja"],
