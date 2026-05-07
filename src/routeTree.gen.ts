@@ -25,6 +25,7 @@ import { Route as AppVehiclesNewRouteImport } from './routes/app.vehicles.new'
 import { Route as AppVehiclesIdRouteImport } from './routes/app.vehicles.$id'
 import { Route as AppMunicipalitiesNewRouteImport } from './routes/app.municipalities.new'
 import { Route as AppMunicipalitiesIdRouteImport } from './routes/app.municipalities.$id'
+import { Route as AppEmployeesNewRouteImport } from './routes/app.employees.new'
 import { Route as AppEmployeesIdRouteImport } from './routes/app.employees.$id'
 import { Route as AppDeliveriesIdRouteImport } from './routes/app.deliveries.$id'
 import { Route as AppVehiclesIdEditRouteImport } from './routes/app.vehicles.$id.edit'
@@ -110,6 +111,11 @@ const AppMunicipalitiesIdRoute = AppMunicipalitiesIdRouteImport.update({
   path: '/municipalities/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEmployeesNewRoute = AppEmployeesNewRouteImport.update({
+  id: '/employees/new',
+  path: '/employees/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEmployeesIdRoute = AppEmployeesIdRouteImport.update({
   id: '/employees/$id',
   path: '/employees/$id',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/deliveries/$id': typeof AppDeliveriesIdRouteWithChildren
   '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/new': typeof AppEmployeesNewRoute
   '/app/municipalities/$id': typeof AppMunicipalitiesIdRoute
   '/app/municipalities/new': typeof AppMunicipalitiesNewRoute
   '/app/vehicles/$id': typeof AppVehiclesIdRouteWithChildren
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/deliveries/$id': typeof AppDeliveriesIdRouteWithChildren
   '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/new': typeof AppEmployeesNewRoute
   '/app/municipalities/$id': typeof AppMunicipalitiesIdRoute
   '/app/municipalities/new': typeof AppMunicipalitiesNewRoute
   '/app/vehicles/$id': typeof AppVehiclesIdRouteWithChildren
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/app/deliveries/$id': typeof AppDeliveriesIdRouteWithChildren
   '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/new': typeof AppEmployeesNewRoute
   '/app/municipalities/$id': typeof AppMunicipalitiesIdRoute
   '/app/municipalities/new': typeof AppMunicipalitiesNewRoute
   '/app/vehicles/$id': typeof AppVehiclesIdRouteWithChildren
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/deliveries/$id'
     | '/app/employees/$id'
+    | '/app/employees/new'
     | '/app/municipalities/$id'
     | '/app/municipalities/new'
     | '/app/vehicles/$id'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/deliveries/$id'
     | '/app/employees/$id'
+    | '/app/employees/new'
     | '/app/municipalities/$id'
     | '/app/municipalities/new'
     | '/app/vehicles/$id'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/deliveries/$id'
     | '/app/employees/$id'
+    | '/app/employees/new'
     | '/app/municipalities/$id'
     | '/app/municipalities/new'
     | '/app/vehicles/$id'
@@ -385,6 +397,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMunicipalitiesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/employees/new': {
+      id: '/app/employees/new'
+      path: '/employees/new'
+      fullPath: '/app/employees/new'
+      preLoaderRoute: typeof AppEmployeesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/employees/$id': {
       id: '/app/employees/$id'
       path: '/employees/$id'
@@ -444,6 +463,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppDeliveriesIdRoute: typeof AppDeliveriesIdRouteWithChildren
   AppEmployeesIdRoute: typeof AppEmployeesIdRoute
+  AppEmployeesNewRoute: typeof AppEmployeesNewRoute
   AppMunicipalitiesIdRoute: typeof AppMunicipalitiesIdRoute
   AppMunicipalitiesNewRoute: typeof AppMunicipalitiesNewRoute
   AppVehiclesIdRoute: typeof AppVehiclesIdRouteWithChildren
@@ -462,6 +482,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppDeliveriesIdRoute: AppDeliveriesIdRouteWithChildren,
   AppEmployeesIdRoute: AppEmployeesIdRoute,
+  AppEmployeesNewRoute: AppEmployeesNewRoute,
   AppMunicipalitiesIdRoute: AppMunicipalitiesIdRoute,
   AppMunicipalitiesNewRoute: AppMunicipalitiesNewRoute,
   AppVehiclesIdRoute: AppVehiclesIdRouteWithChildren,
@@ -486,3 +507,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
