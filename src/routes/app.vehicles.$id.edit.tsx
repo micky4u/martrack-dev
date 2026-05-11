@@ -123,14 +123,29 @@ function EditVehicle() {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Responsable actual">
-            <Select value={form.responsible_user_id ?? "none"} onValueChange={(v) => set("responsible_user_id", v === "none" ? null : v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— Sin asignar —</SelectItem>
-                {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name || e.email}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <Field label="Responsable / Supervisor asignado">
+            <div className="space-y-2">
+              <Select value={form.responsible_user_id ?? "none"} onValueChange={(v) => set("responsible_user_id", v === "none" ? null : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Sin asignar —</SelectItem>
+                  {employees
+                    .filter((e) => !onlySupervisors || e.role === "supervisor")
+                    .map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {(e.full_name || e.email)} · {e.role}{e.position ? ` · ${e.position}` : ""}
+                      </SelectItem>
+                    ))}
+                  {employees.filter((e) => !onlySupervisors || e.role === "supervisor").length === 0 && (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">No hay empleados que coincidan.</div>
+                  )}
+                </SelectContent>
+              </Select>
+              <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <input type="checkbox" checked={onlySupervisors} onChange={(e) => setOnlySupervisors(e.target.checked)} />
+                Mostrar solo supervisores
+              </label>
+            </div>
           </Field>
           <div className="md:col-span-2">
             <Field label="Observaciones"><Textarea value={form.observations ?? ""} onChange={(e) => set("observations", e.target.value)} /></Field>
