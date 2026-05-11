@@ -205,7 +205,7 @@ function VehicleDetail() {
                       {ev.is_valid ? <><XCircle className="h-3 w-3 mr-1"/>Marcar no válida</> : <><CheckCircle2 className="h-3 w-3 mr-1"/>Marcar válida</>}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-[11px]"
-                      onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                      onClick={() => updateEvidence(ev, { active: false }, "evidencia_eliminada")}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
