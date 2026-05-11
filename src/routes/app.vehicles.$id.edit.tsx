@@ -26,18 +26,21 @@ function EditVehicle() {
   const [original, setOriginal] = useState<any>(null);
   const [form, setForm] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [onlySupervisors, setOnlySupervisors] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [{ data: v }, { data: m }, { data: emps }] = await Promise.all([
+      const [{ data: v }, { data: m }, { data: emps }, { data: roles }] = await Promise.all([
         supabase.from("vehicles").select("*").eq("id", id).single(),
         supabase.from("municipalities").select("id,name,active").order("name"),
-        supabase.from("profiles").select("id,full_name,email,active").eq("active", true).order("full_name"),
+        supabase.from("profiles").select("id,full_name,email,position,active,municipality_id").eq("active", true).order("full_name"),
+        supabase.from("user_roles").select("user_id,role"),
       ]);
       setOriginal(v);
       setForm({ ...v, registration_date: v?.registration_date ?? "" });
       setMuns(m ?? []);
-      setEmployees(emps ?? []);
+      const roleMap = new Map<string, string>((roles ?? []).map((r: any) => [r.user_id, r.role]));
+      setEmployees((emps ?? []).map((e: any) => ({ ...e, role: roleMap.get(e.id) ?? "—" })));
     })();
   }, [id]);
 
