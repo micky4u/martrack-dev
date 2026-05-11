@@ -40,7 +40,12 @@ function DeliveryDetail() {
       setEvidence(ev ?? []);
     }
     const { data: sig } = await supabase.from("delivery_signatures").select("*").eq("delivery_id", id).maybeSingle();
-    setSignature(sig);
+    if (sig) {
+      const { data: signed } = await supabase.storage.from("signatures").createSignedUrl(sig.storage_path, 600);
+      setSignature({ ...sig, signedUrl: signed?.signedUrl ?? null });
+    } else {
+      setSignature(null);
+    }
     // Two-step (no FK between user_roles and profiles -> embed returns nothing)
     const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "supervisor");
     const ids = (roleRows ?? []).map((r: any) => r.user_id);
@@ -254,8 +259,9 @@ function DeliveryDetail() {
           {signature && (
             <div className="mt-4 border-t border-border pt-3">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Firma</div>
-              <img src={supabase.storage.from("signatures").getPublicUrl(signature.storage_path).data.publicUrl}
-                alt="firma" className="border border-border rounded bg-white" />
+              {signature.signedUrl
+                ? <img src={signature.signedUrl} alt="firma" className="border border-border rounded bg-white" />
+                : <div className="text-xs text-muted-foreground">No tienes permiso para visualizar esta firma.</div>}
             </div>
           )}
         </Card>
