@@ -187,6 +187,51 @@ function VehicleDetail() {
               <Info l="Observaciones" v={v.observations || "—"} />
             </div>
           </Card>
+
+          <Card className="p-6 mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Supervisor responsable</div>
+                <div className="mt-0.5 text-sm">
+                  {responsible
+                    ? <>{responsible.full_name || responsible.email}{responsible.position ? ` · ${responsible.position}` : ""}</>
+                    : <span className="text-muted-foreground">— Sin asignar —</span>}
+                </div>
+              </div>
+              {canEdit && supervisors.length === 0 && (
+                <Link to="/app/employees/new" className="text-xs underline underline-offset-4">Crear supervisor</Link>
+              )}
+            </div>
+            {canEdit && (
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <Select
+                  value={v.responsible_user_id ?? "none"}
+                  onValueChange={(val) => assignSupervisor(val === "none" ? null : val)}
+                  disabled={assigning || supervisors.length === 0}
+                >
+                  <SelectTrigger className="sm:w-[420px]">
+                    <SelectValue placeholder={supervisors.length === 0 ? "No hay supervisores activos" : "Asignar supervisor…"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sin asignar —</SelectItem>
+                    {supervisors.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {(s.full_name || s.email)}{s.position ? ` · ${s.position}` : ""} · {s.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {v.responsible_user_id && (
+                  <Button variant="outline" size="sm" onClick={() => assignSupervisor(null)} disabled={assigning}>
+                    Quitar
+                  </Button>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Al asignar supervisor el vehículo pasa automáticamente a estado <strong>asignado</strong> si estaba disponible. Para formalizar la entrega con firma, usa <strong>Iniciar entrega</strong> arriba.
+            </p>
+          </Card>
         </TabsContent>
 
         <TabsContent value="evidence" className="mt-4 space-y-4">
