@@ -230,7 +230,29 @@ function VehicleDetail() {
               </ul>
             </Card>
           )}
-          {evidence.length === 0 && <p className="text-sm text-muted-foreground">Sin evidencias todavía</p>}
+          {role === "root" && evidence.filter(e => e.active === false).length > 0 && (
+            <Card className="p-4 border-dashed">
+              <div className="text-xs font-semibold mb-2 uppercase tracking-wider text-muted-foreground">Papelera (solo root)</div>
+              <ul className="space-y-1 text-sm">
+                {evidence.filter(e => e.active === false).map(ev => (
+                  <li key={ev.id} className="flex items-center justify-between gap-2">
+                    <span className="truncate text-muted-foreground">{ev.file_name}</span>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]"
+                        onClick={() => updateEvidence(ev, { active: true }, "evidencia_restaurada")}>
+                        Restaurar
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px] text-destructive"
+                        onClick={() => purgeEvidence(ev)}>
+                        Eliminar definitivamente
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {evidence.length === 0 && <p className="text-sm text-muted-foreground">No hay evidencias adjuntas todavía.</p>}
         </TabsContent>
 
         <TabsContent value="deliveries" className="mt-4">
