@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth-context";
 import { Upload, Plus, ArrowLeft, Pencil, CheckCircle2, XCircle, Trash2 } from "lucide-react";
@@ -24,18 +25,53 @@ function VehicleDetail() {
   const [evidence, setEvidence] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [supervisors, setSupervisors] = useState<any[]>([]);
+  const [responsible, setResponsible] = useState<any>(null);
+  const [assigning, setAssigning] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [desc, setDesc] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    const [{ data: vd }, { data: ed }, { data: hd }, { data: dd }] = await Promise.all([
+    const [{ data: vd }, { data: ed }, { data: hd }, { data: dd }, { data: roles }] = await Promise.all([
       supabase.from("vehicles").select("*, municipalities(name)").eq("id", id).single(),
       supabase.from("vehicle_evidence").select("*").eq("vehicle_id", id).order("created_at",{ascending:false}),
       supabase.from("audit_log").select("*").eq("entity_type","vehicle").eq("entity_id",id).order("created_at",{ascending:false}).limit(20),
       supabase.from("vehicle_deliveries").select("id,status,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
+      supabase.from("user_roles").select("user_id").eq("role","supervisor"),
     ]);
     setV(vd); setEvidence(ed ?? []); setHistory(hd ?? []); setDeliveries(dd ?? []);
+    const supIds = (roles ?? []).map((r: any) => r.user_id);
+    if (supIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles").select("id,full_name,email,position")
+        .in("id", supIds).eq("active", true).order("full_name");
+      setSupervisors(profs ?? []);
+    } else { setSupervisors([]); }
+    if (vd?.responsible_user_id) {
+      const { data: rp } = await supabase
+        .from("profiles").select("id,full_name,email,position")
+        .eq("id", vd.responsible_user_id).maybeSingle();
+      setResponsible(rp);
+    } else { setResponsible(null); }
+  };
+
+  const assignSupervisor = async (newId: string | null) => {
+    setAssigning(true);
+    const before = { responsible_user_id: v.responsible_user_id, status: v.status };
+    const newStatus = newId ? (v.status === "disponible" ? "asignado" : v.status) : v.status;
+    const { error } = await supabase.from("vehicles")
+      .update({ responsible_user_id: newId, status: newStatus }).eq("id", id);
+    setAssigning(false);
+    if (error) { toast.error(error.message); return; }
+    await logAudit({
+      entity_type: "vehicle", entity_id: id,
+      action: newId ? "supervisor_asignado" : "supervisor_desasignado",
+      description: newId ? `Supervisor asignado al vehículo ${v.plate}` : `Supervisor retirado del vehículo ${v.plate}`,
+      metadata: { before, after: { responsible_user_id: newId, status: newStatus } } as never,
+    });
+    toast.success(newId ? "Supervisor asignado" : "Supervisor retirado");
+    load();
   };
 
   useEffect(() => { load(); }, [id]);
@@ -150,6 +186,51 @@ function VehicleDetail() {
             <div className="col-span-full">
               <Info l="Observaciones" v={v.observations || "—"} />
             </div>
+          </Card>
+
+          <Card className="p-6 mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Supervisor responsable</div>
+                <div className="mt-0.5 text-sm">
+                  {responsible
+                    ? <>{responsible.full_name || responsible.email}{responsible.position ? ` · ${responsible.position}` : ""}</>
+                    : <span className="text-muted-foreground">— Sin asignar —</span>}
+                </div>
+              </div>
+              {canEdit && supervisors.length === 0 && (
+                <Link to="/app/employees/new" className="text-xs underline underline-offset-4">Crear supervisor</Link>
+              )}
+            </div>
+            {canEdit && (
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <Select
+                  value={v.responsible_user_id ?? "none"}
+                  onValueChange={(val) => assignSupervisor(val === "none" ? null : val)}
+                  disabled={assigning || supervisors.length === 0}
+                >
+                  <SelectTrigger className="sm:w-[420px]">
+                    <SelectValue placeholder={supervisors.length === 0 ? "No hay supervisores activos" : "Asignar supervisor…"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sin asignar —</SelectItem>
+                    {supervisors.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {(s.full_name || s.email)}{s.position ? ` · ${s.position}` : ""} · {s.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {v.responsible_user_id && (
+                  <Button variant="outline" size="sm" onClick={() => assignSupervisor(null)} disabled={assigning}>
+                    Quitar
+                  </Button>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Al asignar supervisor el vehículo pasa automáticamente a estado <strong>asignado</strong> si estaba disponible. Para formalizar la entrega con firma, usa <strong>Iniciar entrega</strong> arriba.
+            </p>
           </Card>
         </TabsContent>
 
