@@ -24,18 +24,53 @@ function VehicleDetail() {
   const [evidence, setEvidence] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [supervisors, setSupervisors] = useState<any[]>([]);
+  const [responsible, setResponsible] = useState<any>(null);
+  const [assigning, setAssigning] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [desc, setDesc] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    const [{ data: vd }, { data: ed }, { data: hd }, { data: dd }] = await Promise.all([
+    const [{ data: vd }, { data: ed }, { data: hd }, { data: dd }, { data: roles }] = await Promise.all([
       supabase.from("vehicles").select("*, municipalities(name)").eq("id", id).single(),
       supabase.from("vehicle_evidence").select("*").eq("vehicle_id", id).order("created_at",{ascending:false}),
       supabase.from("audit_log").select("*").eq("entity_type","vehicle").eq("entity_id",id).order("created_at",{ascending:false}).limit(20),
       supabase.from("vehicle_deliveries").select("id,status,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
+      supabase.from("user_roles").select("user_id").eq("role","supervisor"),
     ]);
     setV(vd); setEvidence(ed ?? []); setHistory(hd ?? []); setDeliveries(dd ?? []);
+    const supIds = (roles ?? []).map((r: any) => r.user_id);
+    if (supIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles").select("id,full_name,email,position")
+        .in("id", supIds).eq("active", true).order("full_name");
+      setSupervisors(profs ?? []);
+    } else { setSupervisors([]); }
+    if (vd?.responsible_user_id) {
+      const { data: rp } = await supabase
+        .from("profiles").select("id,full_name,email,position")
+        .eq("id", vd.responsible_user_id).maybeSingle();
+      setResponsible(rp);
+    } else { setResponsible(null); }
+  };
+
+  const assignSupervisor = async (newId: string | null) => {
+    setAssigning(true);
+    const before = { responsible_user_id: v.responsible_user_id, status: v.status };
+    const newStatus = newId ? (v.status === "disponible" ? "asignado" : v.status) : v.status;
+    const { error } = await supabase.from("vehicles")
+      .update({ responsible_user_id: newId, status: newStatus }).eq("id", id);
+    setAssigning(false);
+    if (error) { toast.error(error.message); return; }
+    await logAudit({
+      entity_type: "vehicle", entity_id: id,
+      action: newId ? "supervisor_asignado" : "supervisor_desasignado",
+      description: newId ? `Supervisor asignado al vehículo ${v.plate}` : `Supervisor retirado del vehículo ${v.plate}`,
+      metadata: { before, after: { responsible_user_id: newId, status: newStatus } } as never,
+    });
+    toast.success(newId ? "Supervisor asignado" : "Supervisor retirado");
+    load();
   };
 
   useEffect(() => { load(); }, [id]);
