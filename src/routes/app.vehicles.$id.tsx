@@ -221,7 +221,7 @@ function VehicleDetail() {
                   <li key={ev.id} className="flex items-center justify-between gap-2">
                     <a href={publicUrl(ev.bucket, ev.storage_path)} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">{ev.file_name}</a>
                     {canEdit && (
-                      <Button size="sm" variant="ghost" onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                      <Button size="sm" variant="ghost" onClick={() => updateEvidence(ev, { active: false }, "evidencia_eliminada")}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )}
