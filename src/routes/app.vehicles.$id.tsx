@@ -72,6 +72,20 @@ function VehicleDetail() {
     load();
   };
 
+  const purgeEvidence = async (ev: any) => {
+    if (!confirm(`Eliminar definitivamente "${ev.file_name}"? Se borrará el archivo y el registro.`)) return;
+    const { error: sErr } = await supabase.storage.from(ev.bucket).remove([ev.storage_path]);
+    if (sErr) { toast.error(`Storage: ${sErr.message}`); return; }
+    const { error: dErr } = await supabase.from("vehicle_evidence").delete().eq("id", ev.id);
+    if (dErr) { toast.error(dErr.message); return; }
+    await logAudit({
+      entity_type: "evidence", entity_id: ev.id, action: "evidencia_purgada",
+      description: `Eliminación definitiva: ${ev.file_name} (${ev.bucket}/${ev.storage_path})`,
+    });
+    toast.success("Evidencia eliminada definitivamente");
+    load();
+  };
+
   const startDelivery = async () => {
     if (!user) return;
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
@@ -191,7 +205,7 @@ function VehicleDetail() {
                       {ev.is_valid ? <><XCircle className="h-3 w-3 mr-1"/>Marcar no válida</> : <><CheckCircle2 className="h-3 w-3 mr-1"/>Marcar válida</>}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-[11px]"
-                      onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                      onClick={() => updateEvidence(ev, { active: false }, "evidencia_eliminada")}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -207,7 +221,7 @@ function VehicleDetail() {
                   <li key={ev.id} className="flex items-center justify-between gap-2">
                     <a href={publicUrl(ev.bucket, ev.storage_path)} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">{ev.file_name}</a>
                     {canEdit && (
-                      <Button size="sm" variant="ghost" onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                      <Button size="sm" variant="ghost" onClick={() => updateEvidence(ev, { active: false }, "evidencia_eliminada")}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )}
@@ -216,7 +230,29 @@ function VehicleDetail() {
               </ul>
             </Card>
           )}
-          {evidence.length === 0 && <p className="text-sm text-muted-foreground">Sin evidencias todavía</p>}
+          {role === "root" && evidence.filter(e => e.active === false).length > 0 && (
+            <Card className="p-4 border-dashed">
+              <div className="text-xs font-semibold mb-2 uppercase tracking-wider text-muted-foreground">Papelera (solo root)</div>
+              <ul className="space-y-1 text-sm">
+                {evidence.filter(e => e.active === false).map(ev => (
+                  <li key={ev.id} className="flex items-center justify-between gap-2">
+                    <span className="truncate text-muted-foreground">{ev.file_name}</span>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]"
+                        onClick={() => updateEvidence(ev, { active: true }, "evidencia_restaurada")}>
+                        Restaurar
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px] text-destructive"
+                        onClick={() => purgeEvidence(ev)}>
+                        Eliminar definitivamente
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {evidence.length === 0 && <p className="text-sm text-muted-foreground">No hay evidencias adjuntas todavía.</p>}
         </TabsContent>
 
         <TabsContent value="deliveries" className="mt-4">

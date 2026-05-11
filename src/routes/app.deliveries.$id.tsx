@@ -41,9 +41,17 @@ function DeliveryDetail() {
     }
     const { data: sig } = await supabase.from("delivery_signatures").select("*").eq("delivery_id", id).maybeSingle();
     setSignature(sig);
-    const { data: roleRows } = await supabase.from("user_roles")
-      .select("user_id, profiles!inner(id,email,full_name,active)").eq("role", "supervisor");
-    setSupervisors((roleRows ?? []).filter((s: any) => s.profiles?.active));
+    // Two-step (no FK between user_roles and profiles -> embed returns nothing)
+    const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "supervisor");
+    const ids = (roleRows ?? []).map((r: any) => r.user_id);
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles")
+        .select("id,email,full_name,active,position,municipality_id,municipalities(name)")
+        .in("id", ids).eq("active", true).order("full_name");
+      setSupervisors((profs ?? []).map((p: any) => ({ user_id: p.id, profiles: p })));
+    } else {
+      setSupervisors([]);
+    }
   };
   useEffect(() => { load(); }, [id]);
 
@@ -183,14 +191,30 @@ function DeliveryDetail() {
             <div className="border-t border-border pt-4 space-y-3">
               <div className="space-y-1.5">
                 <label className="text-xs">Asignar / cambiar supervisor</label>
-                <Select value={d.supervisor_id ?? ""} onValueChange={assignSupervisor} disabled={evCount === 0}>
-                  <SelectTrigger><SelectValue placeholder={evCount === 0 ? "Adjunta evidencias antes" : "Selecciona supervisor"} /></SelectTrigger>
-                  <SelectContent>
-                    {supervisors.map((s: any) => (
-                      <SelectItem key={s.user_id} value={s.user_id}>{s.profiles.full_name || s.profiles.email}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {supervisors.length === 0 ? (
+                  <div className="text-xs rounded-md border border-dashed border-border p-3 text-muted-foreground">
+                    No hay supervisores activos disponibles.{" "}
+                    <Link to="/app/employees/new" className="underline underline-offset-4 text-foreground">
+                      Crea o activa un empleado con perfil supervisor
+                    </Link>.
+                  </div>
+                ) : (
+                  <Select value={d.supervisor_id ?? ""} onValueChange={assignSupervisor} disabled={evCount === 0}>
+                    <SelectTrigger><SelectValue placeholder={evCount === 0 ? "Adjunta evidencias antes" : "Selecciona supervisor"} /></SelectTrigger>
+                    <SelectContent>
+                      {supervisors.map((s: any) => {
+                        const p = s.profiles;
+                        const meta = [p.position, p.municipalities?.name, p.email].filter(Boolean).join(" · ");
+                        return (
+                          <SelectItem key={s.user_id} value={s.user_id}>
+                            <span className="font-medium">{p.full_name || p.email}</span>
+                            {meta && <span className="text-muted-foreground"> · {meta}</span>}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               {d.status === "firmado" && (
                 <Button variant="outline" onClick={() => updateStatus("cerrado", { closed_at: new Date().toISOString() })}>Cerrar entrega</Button>
