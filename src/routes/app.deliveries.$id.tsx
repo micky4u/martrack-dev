@@ -41,9 +41,17 @@ function DeliveryDetail() {
     }
     const { data: sig } = await supabase.from("delivery_signatures").select("*").eq("delivery_id", id).maybeSingle();
     setSignature(sig);
-    const { data: roleRows } = await supabase.from("user_roles")
-      .select("user_id, profiles!inner(id,email,full_name,active)").eq("role", "supervisor");
-    setSupervisors((roleRows ?? []).filter((s: any) => s.profiles?.active));
+    // Two-step (no FK between user_roles and profiles -> embed returns nothing)
+    const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "supervisor");
+    const ids = (roleRows ?? []).map((r: any) => r.user_id);
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles")
+        .select("id,email,full_name,active,position,municipality_id,municipalities(name)")
+        .in("id", ids).eq("active", true).order("full_name");
+      setSupervisors((profs ?? []).map((p: any) => ({ user_id: p.id, profiles: p })));
+    } else {
+      setSupervisors([]);
+    }
   };
   useEffect(() => { load(); }, [id]);
 
