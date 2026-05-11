@@ -259,8 +259,9 @@ function DeliveryDetail() {
           {signature && (
             <div className="mt-4 border-t border-border pt-3">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Firma</div>
-              <img src={supabase.storage.from("signatures").getPublicUrl(signature.storage_path).data.publicUrl}
-                alt="firma" className="border border-border rounded bg-white" />
+              {signature.signedUrl
+                ? <img src={signature.signedUrl} alt="firma" className="border border-border rounded bg-white" />
+                : <div className="text-xs text-muted-foreground">No tienes permiso para visualizar esta firma.</div>}
             </div>
           )}
         </Card>
