@@ -191,14 +191,30 @@ function DeliveryDetail() {
             <div className="border-t border-border pt-4 space-y-3">
               <div className="space-y-1.5">
                 <label className="text-xs">Asignar / cambiar supervisor</label>
-                <Select value={d.supervisor_id ?? ""} onValueChange={assignSupervisor} disabled={evCount === 0}>
-                  <SelectTrigger><SelectValue placeholder={evCount === 0 ? "Adjunta evidencias antes" : "Selecciona supervisor"} /></SelectTrigger>
-                  <SelectContent>
-                    {supervisors.map((s: any) => (
-                      <SelectItem key={s.user_id} value={s.user_id}>{s.profiles.full_name || s.profiles.email}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {supervisors.length === 0 ? (
+                  <div className="text-xs rounded-md border border-dashed border-border p-3 text-muted-foreground">
+                    No hay supervisores activos disponibles.{" "}
+                    <Link to="/app/employees/new" className="underline underline-offset-4 text-foreground">
+                      Crea o activa un empleado con perfil supervisor
+                    </Link>.
+                  </div>
+                ) : (
+                  <Select value={d.supervisor_id ?? ""} onValueChange={assignSupervisor} disabled={evCount === 0}>
+                    <SelectTrigger><SelectValue placeholder={evCount === 0 ? "Adjunta evidencias antes" : "Selecciona supervisor"} /></SelectTrigger>
+                    <SelectContent>
+                      {supervisors.map((s: any) => {
+                        const p = s.profiles;
+                        const meta = [p.position, p.municipalities?.name, p.email].filter(Boolean).join(" · ");
+                        return (
+                          <SelectItem key={s.user_id} value={s.user_id}>
+                            <span className="font-medium">{p.full_name || p.email}</span>
+                            {meta && <span className="text-muted-foreground"> · {meta}</span>}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               {d.status === "firmado" && (
                 <Button variant="outline" onClick={() => updateStatus("cerrado", { closed_at: new Date().toISOString() })}>Cerrar entrega</Button>
