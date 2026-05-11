@@ -72,6 +72,20 @@ function VehicleDetail() {
     load();
   };
 
+  const purgeEvidence = async (ev: any) => {
+    if (!confirm(`Eliminar definitivamente "${ev.file_name}"? Se borrará el archivo y el registro.`)) return;
+    const { error: sErr } = await supabase.storage.from(ev.bucket).remove([ev.storage_path]);
+    if (sErr) { toast.error(`Storage: ${sErr.message}`); return; }
+    const { error: dErr } = await supabase.from("vehicle_evidence").delete().eq("id", ev.id);
+    if (dErr) { toast.error(dErr.message); return; }
+    await logAudit({
+      entity_type: "evidence", entity_id: ev.id, action: "evidencia_purgada",
+      description: `Eliminación definitiva: ${ev.file_name} (${ev.bucket}/${ev.storage_path})`,
+    });
+    toast.success("Evidencia eliminada definitivamente");
+    load();
+  };
+
   const startDelivery = async () => {
     if (!user) return;
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
