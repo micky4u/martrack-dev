@@ -1,99 +1,94 @@
+# Plan — Administración de accesos MarTrack PMV
 
-# Diagnóstico — MarTrack PMV
+## Diagnóstico
 
-He inspeccionado base de datos, RLS y código antes de tocar nada. Los datos confirman las dos causas raíz que reportas, más varias inconsistencias menores.
+Hoy existe `app.employees.*` (CRUD básico de perfiles) y `app.users.*` (solo lectura). Los huecos:
 
-## 1. Supervisores no aparecen en el selector — CAUSA RAÍZ
+1. No hay **cambiar contraseña** ni **reset** desde admin.
+2. No hay **bloqueo de acceso** (Supabase Auth `ban_duration` no se usa).
+3. No hay **forzar cambio de contraseña** en primer login.
+4. No hay **última fecha de acceso** visible.
+5. La tabla actual de empleados no muestra estado del acceso (banned/active).
+6. `create-employee` edge function existe pero solo crea; falta `update-employee-access` para cambiar password / rol / ban / email.
+7. No hay pantalla de "Mi perfil" + "Cambiar mi contraseña" para supervisor.
+8. Auditoría: faltan acciones `password_reseteada`, `acceso_bloqueado`, `acceso_reactivado`, `rol_cambiado`.
 
-**Datos reales en BD:** existen 2 supervisores activos (`supervisor@demo.com`, `j.gomez@demo.com`).
+## Cambios de base de datos (mínimos, aditivos)
 
-**El bug está en la query**, no en RLS ni en los datos. En `src/routes/app.deliveries.$id.tsx`:
+Una sola migración aditiva, **no destructiva**:
 
-```ts
-supabase.from("user_roles")
-  .select("user_id, profiles!inner(id,email,full_name,active)")
-  .eq("role","supervisor")
-```
+- `profiles`: añadir `disabled_at timestamptz`, `disabled_by uuid`, `disabled_reason text`, `must_change_password boolean default false`.
+- Vista `v_user_access` (read-only) que une `profiles` + `user_roles` + `auth.users` (last_sign_in_at, banned_until, email_confirmed_at) vía SECURITY DEFINER function `get_user_access_overview()` que solo retorna filas si el caller es root/coordinador/gerencia.
+- Función SECURITY DEFINER `count_active_roots()` para validar "no eliminar último root".
+- Trigger en `user_roles` que bloquea quitar el último rol root activo.
 
-PostgREST necesita una **foreign key declarada** entre `user_roles.user_id` y `profiles.id` para resolver el embed `profiles!inner(...)`. Tu esquema actual confirma: *"No foreign keys for the table user_roles"*. Por eso el selector llega vacío aunque haya supervisores.
+No se tocan: `auth.*`, `storage.*`, tablas existentes con datos.
 
-Hay dos arreglos posibles:
-- **A (recomendado, no destructivo):** dejar la BD como está y reescribir la query en el cliente como dos lecturas (`user_roles` por rol → `profiles` por `in(user_id)`). Cero migración.
-- **B:** añadir la FK `user_roles.user_id → profiles.id`. Es seguro porque hoy todos los `user_id` existen en `profiles`, pero requiere migración. Te lo dejo opcional.
+## Nueva edge function: `manage-user-access`
 
-Voy con **A** salvo que prefieras B.
+Una sola function con acciones (POST `{ action, ...payload }`):
 
-## 2. Evidencias “eliminadas” reaparecen — CAUSA RAÍZ
+- `set_password` — root cambia password de cualquier user (admin.updateUserById).
+- `send_reset` — envía email recovery (admin.generateLink type=recovery) o `resetPasswordForEmail`.
+- `set_role` — cambia rol en `user_roles` (root only; valida no quitar último root).
+- `ban` / `unban` — `auth.admin.updateUserById({ ban_duration })` (root only).
+- `update_email` — cambia email en auth + profile (root only).
+- `disable_employee` / `enable_employee` — soft delete: `active=false` + `disabled_at/by/reason` + ban auth.
+- `force_password_change` — set `must_change_password=true`.
 
-El borrado en `vehicle.$id.tsx` ya hace soft delete (`active=false`), pero **`src/routes/app.evidence.index.tsx` NO filtra `active`**, así que la galería global vuelve a mostrarlas. También faltan campos de trazabilidad (`deleted_at`, `deleted_by`, `deleted_reason`).
+Cada acción valida rol del caller con service client + escribe `audit_log` con `actor_user_id`, `entity_type`, `entity_id`, `action`, `description`, `metadata` (old/new).
 
-## 3. Otras inconsistencias detectadas
+Coordinador puede: crear/editar empleados operativos, set_role solo a `supervisor`, send_reset a supervisores. NO puede: ban, set_password, cambiar root/gerencia, set_role a root/gerencia/coordinador.
 
-- `app.deliveries.$id.tsx` permite asignar supervisor solo si `evCount > 0` (correcto), pero deja la entrega indefinidamente en `evidencias_pendientes` aunque ya haya evidencias — falta empujar a `pendiente_firma` al asignar supervisor.
-- 10 entregas en BD, **ninguna con supervisor asignado**: confirma el bug #1, no datos corruptos.
-- `vehicle_evidence` tiene 1 fila con `active=false` que sigue visible en la galería global.
-- No hay tabla "muerta" obvia: las 8 tablas se usan. La tabla `audit_log` sí se llena pero faltan eventos canónicos (`supervisor_cambiado` ya existe; `evidencia_eliminada` no se registra como tal — se loguea como `evidencia_desactivada`).
-- Botones revisados: no hay botones decorativos en los módulos principales. El selector vacío de supervisor es el síntoma que parecía “botón muerto”.
+## Frontend — pantallas
 
-## Plan de cambios — sin migración destructiva
+Renombrar/expandir el módulo:
 
-### A. Frontend (sin tocar BD)
+1. **`app.access.index.tsx`** — Nueva pantalla "Administración de accesos". Tabla unificada con: nombre, email, rol, cargo, ayuntamiento, estado empleado, estado acceso (Activo/Bloqueado/Sin acceso), último login, creación, menú de acciones (DropdownMenu).
+2. **`app.access.$id.tsx`** — Detalle: tabs **Datos del empleado** | **Acceso** | **Auditoría del usuario**. Acciones: cambiar password (Dialog), reset por email, cambiar rol (Select), ban/unban toggle, forzar cambio password, desactivar empleado (con motivo), reactivar.
+3. **`app.access.new.tsx`** — Wizard 3 pasos (Datos → Acceso → Confirmación) con dos botones finales: "Crear empleado y acceso" y "Guardar empleado sin acceso".
+4. **`app.profile.index.tsx`** — Mi perfil + cambiar mi contraseña (`supabase.auth.updateUser({password})`); visible para todos.
+5. Sidebar: añadir "Administración de accesos" (root/coord/gerencia), "Mi perfil" (todos). Mantener `app.users` y `app.employees` redirigiendo a `app.access` para no romper enlaces.
 
-1. **`app.deliveries.$id.tsx`**
-   - Reemplazar query embed por dos lecturas: `user_roles where role='supervisor'` → `profiles where id in (...) and active=true`.
-   - Mostrar `nombre · cargo · ayuntamiento · email` en cada `SelectItem`.
-   - Estado vacío: *"No hay supervisores activos. Crea o activa un empleado con perfil supervisor."* + link a `/app/employees/new` si `root|coordinador`.
-   - Al asignar supervisor, si la entrega está en `evidencias_pendientes` y hay evidencias, pasar a `pendiente_firma` (ya existe parcialmente, lo reforzamos).
-   - Auditar `supervisor_asignado` / `supervisor_cambiado` (ya existe, queda igual).
+Permisos en UI: gerencia ve sin botones de mutación. Supervisor solo ve su perfil.
 
-2. **`app.evidence.index.tsx`**
-   - Añadir `.eq("active", true)` a la query.
-   - Estado vacío correcto.
+## Validaciones cliente (zod)
 
-3. **`app.vehicles.$id.tsx`**
-   - Renombrar acción de auditoría a `evidencia_eliminada` cuando se desactiva (ya guarda `before/after`, solo cambia el nombre del evento).
-   - Botón “Restaurar” visible para `root` sobre evidencias con `active=false` (el archivo sigue en storage; hard delete queda como acción aparte).
-   - Añadir acción **“Eliminar definitivamente”** visible solo para `root`: borra fila + objeto en Storage + audita `evidencia_purgada`.
+Email válido, password ≥ 8 chars, confirmación coincide, rol obligatorio para crear acceso, mensajes exactos del brief.
 
-4. **Mensajes vacíos** consistentes en evidencias, supervisores y errores de Storage.
+## Archivos a crear/editar
 
-### B. Migración OPCIONAL (solo si la apruebas)
+**SQL migración:** 1 archivo aditivo.
+**Edge function nueva:** `supabase/functions/manage-user-access/index.ts`.
+**Edge function existente:** ampliar `create-employee` para soportar `must_change_password` y `skip_auth` (empleado sin acceso → genera UUID local sin auth).
+**Frontend nuevo:** `app.access.index.tsx`, `app.access.$id.tsx`, `app.access.new.tsx`, `app.profile.index.tsx`, `components/PasswordDialog.tsx`, `components/RoleSelector.tsx`.
+**Frontend editado:** `AppSidebar.tsx`, `audit.ts` (ampliar acciones), `app.employees.index.tsx` (redirige a access), `app.users.index.tsx` (redirige).
 
-Una sola migración aditiva, **no destructiva** — no borra datos, no elimina tablas, no cambia tipos:
+## Riesgos
 
-```sql
-ALTER TABLE public.vehicle_evidence
-  ADD COLUMN IF NOT EXISTS deleted_at timestamptz,
-  ADD COLUMN IF NOT EXISTS deleted_by uuid,
-  ADD COLUMN IF NOT EXISTS deleted_reason text;
+- "Empleado sin acceso" requiere que `profiles.id` no tenga FK a `auth.users` — verificaré con `read_query`. Si la tiene, creamos tabla auxiliar `employees_no_auth` o relajamos. Plan A: usar columna nueva `auth_user_id` opcional + permitir `profiles.id` independiente. **Confirmaré antes de aplicar.**
+- HIBP ya activado — passwords débiles serán rechazados por Supabase, mostrar error legible.
 
--- Backfill suave: las que ya están active=false reciben deleted_at=updated_at-equivalente
-UPDATE public.vehicle_evidence
-   SET deleted_at = now()
- WHERE active = false AND deleted_at IS NULL;
-```
+## Checklist de pruebas (al terminar)
 
-Sin esto, el sistema sigue funcionando con `active=false` como soft delete (la opción A ya lo hace consistente). Te dejo elegir.
+1. root crea empleado SIN acceso → aparece en lista, no puede login.
+2. root crea empleado CON acceso → user puede login con email/password.
+3. root cambia password de supervisor → supervisor login con nueva.
+4. root envía reset → supervisor recibe email.
+5. root cambia rol supervisor→coordinador → reflejado en sidebar tras re-login.
+6. root banea acceso → login bloqueado.
+7. root reactiva → login OK.
+8. coord no ve botón "ban" ni "set role root".
+9. gerencia no ve botones de mutación.
+10. supervisor solo ve "/app/profile".
+11. Intentar quitar último root → bloqueado por trigger.
+12. Auditoría muestra todas las acciones con old→new.
 
-### C. Lo que NO voy a hacer en este turno
+## ¿Apruebas?
 
-- No añado FK `user_roles → profiles` (innecesario para arreglar el bug).
-- No creo seeds masivos de empleados (40 empleados, etc.) sin tu OK — sí puedo hacerlo en un paso posterior con `supabase--insert` y datos sintéticos, pero quería confirmar contigo primero porque mencionaste *"no datos reales"* y porque inflar la BD con 40 perfiles sin auth real puede dar problemas en el flujo (necesitan fila en `auth.users` para poder loguearse).
-- No elimino tablas ni columnas: ninguna está muerta.
+Necesito confirmación para:
+1. Aplicar la migración aditiva (4 columnas a `profiles` + función + trigger) — **no destructiva**.
+2. Crear/desplegar la edge function `manage-user-access`.
+3. Crear las 4 pantallas nuevas y reemplazar el módulo de Usuarios actual.
 
-## Orden de aplicación
-
-1. Cambios de frontend (puntos A.1–A.4) — sin riesgo.
-2. Verificación: probar selector de supervisor en `/app/deliveries/<id>`, eliminar evidencia y confirmar que no reaparece.
-3. (Opcional) Migración aditiva del punto B si la confirmas.
-4. (Opcional) Seed sintético de 3–5 supervisores adicionales y 2–3 entregas en distintos estados, una vez decidamos cómo gestionar los `auth.users` (vía edge function `create-employee` ya existente).
-
-## ¿Cómo seguimos?
-
-Confirma una de estas:
-
-- **“Aplica A”** → ejecuto solo cambios de frontend.
-- **“Aplica A + B”** → cambios de frontend + migración aditiva de campos de borrado.
-- **“Aplica A + B + seeds”** → todo lo anterior + 5 supervisores demo y entregas en varios estados (creados vía la edge function existente, password `demo1234`).
-
-No tocaré nada más hasta tu confirmación.
+Responde **"adelante"** para ejecutar todo en una sola pasada.
