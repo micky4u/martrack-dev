@@ -1,7 +1,7 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Car, Building2, ClipboardCheck, Image,
-  Users, UserCog, Settings, History, LogOut,
+  ShieldCheck, UserCog, Settings, History, LogOut, User,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -18,8 +18,9 @@ const items: Item[] = [
   { title: "Ayuntamientos", url: "/app/municipalities", icon: Building2, roles: ["root", "gerencia", "coordinador"] },
   { title: "Entregas", url: "/app/deliveries", icon: ClipboardCheck, roles: ["root", "gerencia", "coordinador", "supervisor"] },
   { title: "Evidencias", url: "/app/evidence", icon: Image, roles: ["root", "gerencia", "coordinador", "supervisor"] },
+  { title: "Administración de accesos", url: "/app/access", icon: ShieldCheck, roles: ["root", "gerencia", "coordinador"] },
   { title: "Empleados", url: "/app/employees", icon: UserCog, roles: ["root", "gerencia", "coordinador"] },
-  { title: "Usuarios y roles", url: "/app/users", icon: Users, roles: ["root"] },
+  { title: "Mi perfil", url: "/app/profile", icon: User, roles: ["root", "gerencia", "coordinador", "supervisor"] },
   { title: "Auditoría", url: "/app/audit", icon: History, roles: ["root", "gerencia"] },
   { title: "Configuración", url: "/app/settings", icon: Settings, roles: ["root"] },
 ];

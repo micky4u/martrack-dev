@@ -116,12 +116,16 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          disabled_at: string | null
+          disabled_by: string | null
+          disabled_reason: string | null
           driving_license: string | null
           email: string | null
           full_name: string | null
           hire_date: string | null
           id: string
           municipality_id: string | null
+          must_change_password: boolean
           observations: string | null
           phone: string | null
           position: string | null
@@ -130,12 +134,16 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_reason?: string | null
           driving_license?: string | null
           email?: string | null
           full_name?: string | null
           hire_date?: string | null
           id: string
           municipality_id?: string | null
+          must_change_password?: boolean
           observations?: string | null
           phone?: string | null
           position?: string | null
@@ -144,12 +152,16 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
+          disabled_reason?: string | null
           driving_license?: string | null
           email?: string | null
           full_name?: string | null
           hire_date?: string | null
           id?: string
           municipality_id?: string | null
+          must_change_password?: boolean
           observations?: string | null
           phone?: string | null
           position?: string | null
