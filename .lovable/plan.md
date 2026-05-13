@@ -1,94 +1,166 @@
-# Plan — Administración de accesos MarTrack PMV
 
-## Diagnóstico
+# Plan correctivo MarTrack PMV — Permisos, flujo de asignación y cierre
 
-Hoy existe `app.employees.*` (CRUD básico de perfiles) y `app.users.*` (solo lectura). Los huecos:
+> Diagnóstico previo. **Ninguna migración se aplicará sin tu aprobación explícita.** Cambios SQL son aditivos (políticas RLS, triggers, columna `current_responsible_employee_id`); no se elimina ningún dato ni columna.
 
-1. No hay **cambiar contraseña** ni **reset** desde admin.
-2. No hay **bloqueo de acceso** (Supabase Auth `ban_duration` no se usa).
-3. No hay **forzar cambio de contraseña** en primer login.
-4. No hay **última fecha de acceso** visible.
-5. La tabla actual de empleados no muestra estado del acceso (banned/active).
-6. `create-employee` edge function existe pero solo crea; falta `update-employee-access` para cambiar password / rol / ban / email.
-7. No hay pantalla de "Mi perfil" + "Cambiar mi contraseña" para supervisor.
-8. Auditoría: faltan acciones `password_reseteada`, `acceso_bloqueado`, `acceso_reactivado`, `rol_cambiado`.
+---
 
-## Cambios de base de datos (mínimos, aditivos)
+## 1. Diagnóstico — causa raíz por problema
 
-Una sola migración aditiva, **no destructiva**:
+| # | Problema reportado | Causa raíz detectada |
+|---|---|---|
+| 1 | Supervisor ve todo | RLS abiertos: `vehicles`, `vehicle_deliveries`, `vehicle_evidence`, `municipalities`, `delivery_signatures` tienen `USING (true)` para SELECT. Sidebar solo oculta items pero los datos siguen accesibles por URL/consulta. |
+| 2 | Coordinador no puede asignar coche con flujo claro | El selector de supervisores ya existe en `app.deliveries.$id.tsx`, pero **no hay flujo "Asignar vehículo" desde el detalle de vehículo** que cree la entrega y enlace al supervisor en un solo paso. La creación de entregas (`app.deliveries.new`) no existe como wizard. |
+| 3 | Supervisor sin opción clara para terminar el proceso | El detalle de entrega muestra el botón "Firmar entrega" solo si `status === 'pendiente_firma'`. Las entregas nuevas nacen en `borrador`/`evidencias_pendientes` y nunca avanzan automáticamente. No hay botón "Finalizar asignación" tras la firma para el supervisor (solo coordinador puede cerrar). |
+| 4 | Flujo incompleto | Falta: (a) transición automática de estado tras subir evidencias, (b) acción "Finalizar" para supervisor, (c) actualización de `vehicles.responsible_user_id` al cerrar, (d) bloqueo de cambios post-cierre. |
 
-- `profiles`: añadir `disabled_at timestamptz`, `disabled_by uuid`, `disabled_reason text`, `must_change_password boolean default false`.
-- Vista `v_user_access` (read-only) que une `profiles` + `user_roles` + `auth.users` (last_sign_in_at, banned_until, email_confirmed_at) vía SECURITY DEFINER function `get_user_access_overview()` que solo retorna filas si el caller es root/coordinador/gerencia.
-- Función SECURITY DEFINER `count_active_roots()` para validar "no eliminar último root".
-- Trigger en `user_roles` que bloquea quitar el último rol root activo.
+---
 
-No se tocan: `auth.*`, `storage.*`, tablas existentes con datos.
+## 2. Cambios de base de datos (aditivos, requieren aprobación)
 
-## Nueva edge function: `manage-user-access`
+### 2.1 RLS — endurecer SELECT por rol
 
-Una sola function con acciones (POST `{ action, ...payload }`):
+**Tablas afectadas:** `vehicles`, `vehicle_deliveries`, `vehicle_evidence`, `delivery_signatures`, `profiles`, `audit_log`, `municipalities`.
 
-- `set_password` — root cambia password de cualquier user (admin.updateUserById).
-- `send_reset` — envía email recovery (admin.generateLink type=recovery) o `resetPasswordForEmail`.
-- `set_role` — cambia rol en `user_roles` (root only; valida no quitar último root).
-- `ban` / `unban` — `auth.admin.updateUserById({ ban_duration })` (root only).
-- `update_email` — cambia email en auth + profile (root only).
-- `disable_employee` / `enable_employee` — soft delete: `active=false` + `disabled_at/by/reason` + ban auth.
-- `force_password_change` — set `must_change_password=true`.
+Nuevas políticas SELECT (reemplazan las `USING (true)` actuales):
 
-Cada acción valida rol del caller con service client + escribe `audit_log` con `actor_user_id`, `entity_type`, `entity_id`, `action`, `description`, `metadata` (old/new).
+- **vehicles**: root/gerencia/coordinador → todos. Supervisor → solo donde `responsible_user_id = auth.uid()` **OR** existe `vehicle_deliveries` con `supervisor_id = auth.uid()` activa o histórica suya.
+- **vehicle_deliveries**: root/gerencia/coordinador → todos. Supervisor → solo donde `supervisor_id = auth.uid()`.
+- **vehicle_evidence**: root/gerencia/coordinador → todos. Supervisor → solo evidencias de vehículos cuyas entregas él supervisa (subquery a `vehicle_deliveries`).
+- **delivery_signatures**: root/gerencia/coordinador → todos. Supervisor → solo donde `signed_by = auth.uid()` o entrega suya.
+- **profiles**: supervisor → solo su propio registro (ya casi correcto, mantener).
+- **audit_log**: solo root/gerencia/coordinador. Supervisor sin acceso.
+- **municipalities**: mantener lectura pública autenticada (necesario para mostrar nombres) pero ocultar listado del menú al supervisor.
 
-Coordinador puede: crear/editar empleados operativos, set_role solo a `supervisor`, send_reset a supervisores. NO puede: ban, set_password, cambiar root/gerencia, set_role a root/gerencia/coordinador.
+### 2.2 Nueva columna y trigger
 
-## Frontend — pantallas
+- `vehicles.current_responsible_employee_id` ya existe como `responsible_user_id` → **reutilizar**.
+- Trigger `on_delivery_closed`: al pasar `vehicle_deliveries.status` a `cerrado`, actualizar `vehicles.responsible_user_id = NEW.supervisor_id` y `vehicles.status = 'asignado'` + insertar `audit_log` con `vehiculo_responsable_actualizado`.
+- Trigger `prevent_closed_delivery_modification`: bloquear UPDATE/DELETE en `vehicle_deliveries` cerrada salvo si el actor es root.
+- Trigger `prevent_evidence_change_after_close`: bloquear cambios en `vehicle_evidence` cuya entrega esté cerrada, salvo root.
 
-Renombrar/expandir el módulo:
+### 2.3 Función helper
 
-1. **`app.access.index.tsx`** — Nueva pantalla "Administración de accesos". Tabla unificada con: nombre, email, rol, cargo, ayuntamiento, estado empleado, estado acceso (Activo/Bloqueado/Sin acceso), último login, creación, menú de acciones (DropdownMenu).
-2. **`app.access.$id.tsx`** — Detalle: tabs **Datos del empleado** | **Acceso** | **Auditoría del usuario**. Acciones: cambiar password (Dialog), reset por email, cambiar rol (Select), ban/unban toggle, forzar cambio password, desactivar empleado (con motivo), reactivar.
-3. **`app.access.new.tsx`** — Wizard 3 pasos (Datos → Acceso → Confirmación) con dos botones finales: "Crear empleado y acceso" y "Guardar empleado sin acceso".
-4. **`app.profile.index.tsx`** — Mi perfil + cambiar mi contraseña (`supabase.auth.updateUser({password})`); visible para todos.
-5. Sidebar: añadir "Administración de accesos" (root/coord/gerencia), "Mi perfil" (todos). Mantener `app.users` y `app.employees` redirigiendo a `app.access` para no romper enlaces.
+```sql
+create or replace function public.supervisor_can_see_vehicle(_vehicle_id uuid, _user_id uuid)
+returns boolean language sql stable security definer set search_path=public as $$
+  select exists(
+    select 1 from vehicle_deliveries
+    where vehicle_id = _vehicle_id and supervisor_id = _user_id
+  ) or exists(
+    select 1 from vehicles where id = _vehicle_id and responsible_user_id = _user_id
+  );
+$$;
+```
 
-Permisos en UI: gerencia ve sin botones de mutación. Supervisor solo ve su perfil.
+---
 
-## Validaciones cliente (zod)
+## 3. Cambios en frontend
 
-Email válido, password ≥ 8 chars, confirmación coincide, rol obligatorio para crear acceso, mensajes exactos del brief.
+### 3.1 Sidebar (`AppSidebar.tsx`)
+Restringir items para `supervisor`:
+- Visible: Mi dashboard, Mis vehículos, Mis asignaciones, Mis evidencias, Mi perfil.
+- Oculto: Ayuntamientos, Empleados, Administración de accesos, Auditoría, Configuración.
 
-## Archivos a crear/editar
+### 3.2 Guards de ruta
+Añadir `beforeLoad` en rutas administrativas que rechace `role === 'supervisor'` y redirija a `/app` con toast "No tienes permiso para ver este recurso".
+Rutas afectadas: `app.access.*`, `app.employees.*`, `app.municipalities.*`, `app.audit.*`, `app.settings.*`, `app.users.*`.
 
-**SQL migración:** 1 archivo aditivo.
-**Edge function nueva:** `supabase/functions/manage-user-access/index.ts`.
-**Edge function existente:** ampliar `create-employee` para soportar `must_change_password` y `skip_auth` (empleado sin acceso → genera UUID local sin auth).
-**Frontend nuevo:** `app.access.index.tsx`, `app.access.$id.tsx`, `app.access.new.tsx`, `app.profile.index.tsx`, `components/PasswordDialog.tsx`, `components/RoleSelector.tsx`.
-**Frontend editado:** `AppSidebar.tsx`, `audit.ts` (ampliar acciones), `app.employees.index.tsx` (redirige a access), `app.users.index.tsx` (redirige).
+### 3.3 Consultas filtradas para supervisor
+- `app.vehicles.index.tsx`: si role=supervisor, filtrar `.or('responsible_user_id.eq.<uid>,id.in.(<vehicle_ids de sus deliveries>)')`.
+- `app.deliveries.index.tsx`: si role=supervisor, `.eq('supervisor_id', user.id)`.
+- `app.evidence.index.tsx`: si role=supervisor, filtrar por sus vehículos.
+- `app.index.tsx` (dashboard): cards adaptadas a role supervisor (solo conteos suyos).
 
-## Riesgos
+### 3.4 Nuevo flujo "Asignar vehículo" desde detalle del vehículo
+En `app.vehicles.$id.tsx`, para coordinador/root añadir botón **"Iniciar asignación"** que abra dialog:
+- Selector supervisor (ya implementado, reutilizar query)
+- Fecha asignación (default: hoy)
+- Observaciones
+- Al confirmar: crea `vehicle_deliveries` con `status='evidencias_pendientes'`, `supervisor_id`, `created_by`, audit `asignacion_creada` + `supervisor_asignado`. Redirige al detalle de la nueva entrega.
 
-- "Empleado sin acceso" requiere que `profiles.id` no tenga FK a `auth.users` — verificaré con `read_query`. Si la tiene, creamos tabla auxiliar `employees_no_auth` o relajamos. Plan A: usar columna nueva `auth_user_id` opcional + permitir `profiles.id` independiente. **Confirmaré antes de aplicar.**
-- HIBP ya activado — passwords débiles serán rechazados por Supabase, mostrar error legible.
+### 3.5 Detalle de entrega — flujo supervisor
+En `app.deliveries.$id.tsx`:
+- Si `role==='supervisor'` y es su entrega:
+  - Mostrar siempre botón **"Subir evidencias"** (link a `/app/evidence?vehicle=<id>`) si `status in ('evidencias_pendientes','pendiente_firma')`.
+  - Mostrar **"Firmar aceptación"** cuando `evidence.length > 0` y `status !== 'firmado'/'cerrado'/'cancelado'`. Al pulsarlo, si `status==='evidencias_pendientes'` cambiar a `pendiente_firma` antes de navegar a `/sign`.
+  - Tras firmar, mostrar **"Finalizar asignación"** que pone `status='cerrado'`, `closed_at=now()` (el trigger actualiza `vehicles`).
+- Si NO es su entrega y es supervisor → 403 page.
 
-## Checklist de pruebas (al terminar)
+### 3.6 Pantalla de firma (`app.deliveries.$id.sign.tsx`)
+Verificar que ya incluye:
+- Canvas para firmar con dedo/ratón ✓ (asumido — revisar)
+- Botón limpiar
+- **Checkbox obligatorio** "Acepto la entrega del vehículo en el estado registrado." (añadir si falta)
+- **Texto declarativo** completo (añadir si falta)
+- Submit deshabilitado hasta firma + checkbox
+- Tras guardar firma: status → `firmado`, audit `firma_registrada`+`asignacion_firmada`.
 
-1. root crea empleado SIN acceso → aparece en lista, no puede login.
-2. root crea empleado CON acceso → user puede login con email/password.
-3. root cambia password de supervisor → supervisor login con nueva.
-4. root envía reset → supervisor recibe email.
-5. root cambia rol supervisor→coordinador → reflejado en sidebar tras re-login.
-6. root banea acceso → login bloqueado.
-7. root reactiva → login OK.
-8. coord no ve botón "ban" ni "set role root".
-9. gerencia no ve botones de mutación.
-10. supervisor solo ve "/app/profile".
-11. Intentar quitar último root → bloqueado por trigger.
-12. Auditoría muestra todas las acciones con old→new.
+### 3.7 Subida de evidencias para supervisor
+`app.evidence.index.tsx`: si supervisor, mostrar solo sus vehículos y solo permitir uploader en vehículos suyos. Cada upload registra audit `evidencia_subida` con `delivery_id` asociado.
+
+---
+
+## 4. Auditoría — eventos a garantizar
+Añadir/verificar `logAudit` en cada acción:
+`asignacion_creada`, `supervisor_asignado`, `supervisor_cambiado`, `evidencia_subida`, `firma_registrada`, `asignacion_firmada`, `asignacion_cerrada`, `vehiculo_responsable_actualizado` (trigger), `acceso_denegado` (en guards).
+
+---
+
+## 5. Datos demo
+Script de seed (vía `supabase--insert`) tras aplicar migraciones:
+- 10 vehículos, 10 ayuntamientos, ~40 perfiles, 5 supervisores activos, 5 coordinadores.
+- 5 entregas en estados: `evidencias_pendientes`, `pendiente_firma` (con evidencias), `firmado`, `cerrado`, una con `supervisor_id` cambiado (audit refleja el cambio).
+- Usuarios auth: `root@demo.local`, `gerencia@demo.local`, `coordinador@demo.local`, `supervisor@demo.local` (password único compartido para demo).
+
+---
+
+## 6. Archivos a tocar
+
+**SQL (1 migración aditiva):**
+- `supabase/migrations/<ts>_supervisor_rls_and_delivery_close.sql`
+
+**Frontend:**
+- `src/components/AppSidebar.tsx` — filtrar items por role supervisor
+- `src/routes/app.vehicles.index.tsx` — filtro supervisor
+- `src/routes/app.vehicles.$id.tsx` — botón "Iniciar asignación" + dialog
+- `src/routes/app.deliveries.index.tsx` — filtro supervisor
+- `src/routes/app.deliveries.$id.tsx` — botones supervisor + finalizar
+- `src/routes/app.deliveries.$id.sign.tsx` — checkbox + texto declarativo (verificar)
+- `src/routes/app.evidence.index.tsx` — filtro supervisor + audit con delivery_id
+- `src/routes/app.index.tsx` — dashboard supervisor
+- `src/routes/app.access.index.tsx`, `app.employees.index.tsx`, `app.municipalities.index.tsx`, `app.audit.index.tsx`, `app.settings.index.tsx`, `app.users.index.tsx` — guard role
+- `src/lib/auth-context.tsx` — sin cambios (rol ya disponible)
+
+**No se tocará:** `client.ts`, `types.ts`, `config.toml` (project_id), edge functions existentes.
+
+---
+
+## 7. Checklist de pruebas (post-implementación)
+
+1. **Coordinador asigna**: login coordinador → vehículo → "Iniciar asignación" → selecciona supervisor → entrega creada en `evidencias_pendientes`.
+2. **Supervisor aislado**: login supervisor → sidebar muestra solo 5 items → `/app/employees` redirige con 403 → `/app/vehicles/<otro_id>` 403.
+3. **Supervisor sube + firma + cierra**: abre su asignación → sube 2 fotos → "Firmar aceptación" → checkbox + canvas → guarda → "Finalizar asignación" → status `cerrado` → vehículo `responsible_user_id` = él, status `asignado`.
+4. **Bloqueo post-cierre**: coordinador intenta editar entrega cerrada → bloqueado por trigger. Root sí puede.
+5. **Auditoría**: `audit_log` contiene los 8 eventos del flujo.
+6. **Coordinador cambia supervisor** antes de firma → permitido + audit `supervisor_cambiado`.
+7. **RLS directo**: con sesión supervisor, `supabase.from('vehicle_deliveries').select('*')` retorna solo las suyas (no filtro frontend).
+
+---
+
+## 8. Riesgos y notas
+
+- **Cambio RLS en `vehicles`/`deliveries`** puede romper queries existentes que asumen acceso global. Mitigado: roles admin mantienen acceso vía `has_role()`.
+- **Trigger de cierre**: si una entrega ya cerrada se reabre y vuelve a cerrar, reasigna responsable. Aceptable.
+- **Datos demo**: requieren crear usuarios auth — se hará con `supabaseAdmin` en seed; passwords visibles en logs de migración (acepta riesgo demo).
+- **Pendiente fuera de scope**: rediseño visual, reportes PDF, notificaciones email — no se tocan.
+
+---
 
 ## ¿Apruebas?
 
-Necesito confirmación para:
-1. Aplicar la migración aditiva (4 columnas a `profiles` + función + trigger) — **no destructiva**.
-2. Crear/desplegar la edge function `manage-user-access`.
-3. Crear las 4 pantallas nuevas y reemplazar el módulo de Usuarios actual.
-
-Responde **"adelante"** para ejecutar todo en una sola pasada.
+Si confirmas, ejecuto en este orden:
+1. Migración SQL (RLS + triggers + función helper).
+2. Edits frontend (sidebar, guards, filtros, flujo asignación, finalizar).
+3. Seed de datos demo.
+4. Verificación manual con checklist.

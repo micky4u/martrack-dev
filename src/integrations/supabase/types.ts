@@ -382,6 +382,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      supervisor_can_see_vehicle: {
+        Args: { _user_id: string; _vehicle_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "root" | "gerencia" | "coordinador" | "supervisor"

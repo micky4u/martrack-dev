@@ -4,9 +4,16 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+// Rutas que el supervisor NO puede abrir (defensa por URL directa)
+const SUPERVISOR_FORBIDDEN_PREFIXES = [
+  "/app/employees", "/app/municipalities", "/app/access",
+  "/app/users", "/app/audit", "/app/settings",
+];
 
 export function AppLayout() {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [mustChange, setMustChange] = useState(false);
@@ -24,6 +31,15 @@ export function AppLayout() {
   useEffect(() => {
     if (mustChange && path !== "/app/profile") navigate({ to: "/app/profile" });
   }, [mustChange, path, navigate]);
+
+  // Guard supervisor: si entra por URL a un módulo administrativo, denegar.
+  useEffect(() => {
+    if (role !== "supervisor") return;
+    if (SUPERVISOR_FORBIDDEN_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
+      toast.error("No tienes permiso para ver este recurso.");
+      navigate({ to: "/app" });
+    }
+  }, [role, path, navigate]);
 
   if (loading || !user) {
     return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>;

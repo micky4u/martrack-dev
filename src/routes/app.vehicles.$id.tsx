@@ -37,7 +37,7 @@ function VehicleDetail() {
       supabase.from("vehicles").select("*, municipalities(name)").eq("id", id).single(),
       supabase.from("vehicle_evidence").select("*").eq("vehicle_id", id).order("created_at",{ascending:false}),
       supabase.from("audit_log").select("*").eq("entity_type","vehicle").eq("entity_id",id).order("created_at",{ascending:false}).limit(20),
-      supabase.from("vehicle_deliveries").select("id,status,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
+      supabase.from("vehicle_deliveries").select("id,status,supervisor_id,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
       supabase.from("user_roles").select("user_id").eq("role","supervisor"),
     ]);
     setV(vd); setEvidence(ed ?? []); setHistory(hd ?? []); setDeliveries(dd ?? []);
@@ -90,7 +90,7 @@ function VehicleDetail() {
         file_name: file.name, mime_type: file.type, description: desc || null,
         kind: isImg ? "photo" : "document",
       });
-      await logAudit({ entity_type: "vehicle", entity_id: id, action: "evidence_upload", description: `Evidencia subida: ${file.name}` });
+      await logAudit({ entity_type: "vehicle", entity_id: id, action: "evidencia_subida", description: `Evidencia subida: ${file.name}` });
     }
     setUploading(false); setDesc(""); if (fileRef.current) fileRef.current.value = "";
     toast.success("Evidencias subidas");
@@ -135,6 +135,11 @@ function VehicleDetail() {
   if (!v) return <div className="text-sm text-muted-foreground">Cargando…</div>;
 
   const canEdit = role === "root" || role === "coordinador";
+  const isAssignedSupervisor = role === "supervisor" && (
+    v.responsible_user_id === user?.id ||
+    deliveries.some((dd: any) => dd.supervisor_id === user?.id)
+  );
+  const canUploadEvidence = canEdit || isAssignedSupervisor;
   const publicUrl = (b: string, p: string) => supabase.storage.from(b).getPublicUrl(p).data.publicUrl;
 
   return (
@@ -235,7 +240,7 @@ function VehicleDetail() {
         </TabsContent>
 
         <TabsContent value="evidence" className="mt-4 space-y-4">
-          {canEdit && (
+          {canUploadEvidence && (
             <Card className="p-4">
               <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
                 <div className="flex-1 space-y-1.5">
