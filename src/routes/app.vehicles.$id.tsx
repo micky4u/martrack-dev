@@ -240,7 +240,7 @@ function VehicleDetail() {
         </TabsContent>
 
         <TabsContent value="evidence" className="mt-4 space-y-4">
-          {canEdit && (
+          {canUploadEvidence && (
             <Card className="p-4">
               <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
                 <div className="flex-1 space-y-1.5">
