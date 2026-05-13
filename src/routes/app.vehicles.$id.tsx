@@ -37,7 +37,7 @@ function VehicleDetail() {
       supabase.from("vehicles").select("*, municipalities(name)").eq("id", id).single(),
       supabase.from("vehicle_evidence").select("*").eq("vehicle_id", id).order("created_at",{ascending:false}),
       supabase.from("audit_log").select("*").eq("entity_type","vehicle").eq("entity_id",id).order("created_at",{ascending:false}).limit(20),
-      supabase.from("vehicle_deliveries").select("id,status,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
+      supabase.from("vehicle_deliveries").select("id,status,supervisor_id,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
       supabase.from("user_roles").select("user_id").eq("role","supervisor"),
     ]);
     setV(vd); setEvidence(ed ?? []); setHistory(hd ?? []); setDeliveries(dd ?? []);
