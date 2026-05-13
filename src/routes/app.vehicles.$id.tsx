@@ -135,6 +135,11 @@ function VehicleDetail() {
   if (!v) return <div className="text-sm text-muted-foreground">Cargando…</div>;
 
   const canEdit = role === "root" || role === "coordinador";
+  const isAssignedSupervisor = role === "supervisor" && (
+    v.responsible_user_id === user?.id ||
+    deliveries.some((dd: any) => dd.supervisor_id === user?.id)
+  );
+  const canUploadEvidence = canEdit || isAssignedSupervisor;
   const publicUrl = (b: string, p: string) => supabase.storage.from(b).getPublicUrl(p).data.publicUrl;
 
   return (
