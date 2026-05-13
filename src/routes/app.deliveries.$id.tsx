@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth-context";
-import { ArrowLeft, PenLine, X, RotateCcw, Save } from "lucide-react";
+import { ArrowLeft, PenLine, X, RotateCcw, Save, Upload, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { logAudit, logChange } from "@/lib/audit";
 import {
