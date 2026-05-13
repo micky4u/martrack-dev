@@ -14,10 +14,13 @@ type Item = { title: string; url: string; icon: typeof Car; roles: AppRole[] };
 
 const items: Item[] = [
   { title: "Dashboard", url: "/app", icon: LayoutDashboard, roles: ["root", "gerencia", "coordinador", "supervisor"] },
-  { title: "Vehículos", url: "/app/vehicles", icon: Car, roles: ["root", "gerencia", "coordinador", "supervisor"] },
+  { title: "Vehículos", url: "/app/vehicles", icon: Car, roles: ["root", "gerencia", "coordinador"] },
+  { title: "Mis vehículos", url: "/app/vehicles", icon: Car, roles: ["supervisor"] },
   { title: "Ayuntamientos", url: "/app/municipalities", icon: Building2, roles: ["root", "gerencia", "coordinador"] },
-  { title: "Entregas", url: "/app/deliveries", icon: ClipboardCheck, roles: ["root", "gerencia", "coordinador", "supervisor"] },
-  { title: "Evidencias", url: "/app/evidence", icon: Image, roles: ["root", "gerencia", "coordinador", "supervisor"] },
+  { title: "Entregas", url: "/app/deliveries", icon: ClipboardCheck, roles: ["root", "gerencia", "coordinador"] },
+  { title: "Mis asignaciones", url: "/app/deliveries", icon: ClipboardCheck, roles: ["supervisor"] },
+  { title: "Evidencias", url: "/app/evidence", icon: Image, roles: ["root", "gerencia", "coordinador"] },
+  { title: "Mis evidencias", url: "/app/evidence", icon: Image, roles: ["supervisor"] },
   { title: "Administración de accesos", url: "/app/access", icon: ShieldCheck, roles: ["root", "gerencia", "coordinador"] },
   { title: "Empleados", url: "/app/employees", icon: UserCog, roles: ["root", "gerencia", "coordinador"] },
   { title: "Mi perfil", url: "/app/profile", icon: User, roles: ["root", "gerencia", "coordinador", "supervisor"] },
