@@ -90,7 +90,7 @@ function VehicleDetail() {
         file_name: file.name, mime_type: file.type, description: desc || null,
         kind: isImg ? "photo" : "document",
       });
-      await logAudit({ entity_type: "vehicle", entity_id: id, action: "evidence_upload", description: `Evidencia subida: ${file.name}` });
+      await logAudit({ entity_type: "vehicle", entity_id: id, action: "evidencia_subida", description: `Evidencia subida: ${file.name}` });
     }
     setUploading(false); setDesc(""); if (fileRef.current) fileRef.current.value = "";
     toast.success("Evidencias subidas");
