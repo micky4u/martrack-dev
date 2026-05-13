@@ -151,9 +151,29 @@ function DeliveryDetail() {
             </Link>
           </p>
         </div>
-        <div className="flex gap-2">
-          {isSupervisor && d.status === "pendiente_firma" && (
-            <Button asChild><Link to="/app/deliveries/$id/sign" params={{ id }}><PenLine className="h-4 w-4 mr-1" />Firmar entrega</Link></Button>
+        <div className="flex gap-2 flex-wrap">
+          {isSupervisor && !closed && !cancelled && (
+            <Button asChild variant="outline">
+              <Link to="/app/vehicles/$id" params={{ id: d.vehicle_id }}>
+                <Upload className="h-4 w-4 mr-1" />Subir evidencias
+              </Link>
+            </Button>
+          )}
+          {isSupervisor && !closed && !cancelled && evCount > 0 && d.status !== "firmado" && (
+            <Button onClick={async () => {
+              if (d.status !== "pendiente_firma") {
+                await supabase.from("vehicle_deliveries").update({ status: "pendiente_firma" }).eq("id", id);
+                await logAudit({ entity_type: "delivery", entity_id: id, action: "entrega_lista_para_firma", description: "Supervisor inició la firma" });
+              }
+              window.location.assign(`/app/deliveries/${id}/sign`);
+            }}>
+              <PenLine className="h-4 w-4 mr-1" />Firmar aceptación
+            </Button>
+          )}
+          {isSupervisor && d.status === "firmado" && (
+            <Button onClick={() => updateStatus("cerrado", { closed_at: new Date().toISOString() }, "asignacion_cerrada")}>
+              <CheckCircle2 className="h-4 w-4 mr-1" />Finalizar asignación
+            </Button>
           )}
           {isRoot && (closed || cancelled) && (
             <Button variant="outline" onClick={reopen}><RotateCcw className="h-4 w-4 mr-1" />Reabrir</Button>
