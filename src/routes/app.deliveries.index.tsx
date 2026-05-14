@@ -29,9 +29,19 @@ function DeliveriesList() {
       .order("created_at", { ascending: false })
       .then(({ data }) => setRows(data ?? []));
   };
+  const loadEligibleVehicles = async () => {
+    // Only available vehicles AND no active delivery (active = not cancelado/cerrado)
+    const ACTIVE_DELIVERY_STATUSES = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"];
+    const [{ data: vs }, { data: activeDeliveries }] = await Promise.all([
+      supabase.from("vehicles").select("id,plate,brand,model,status").eq("status", "disponible").order("plate"),
+      supabase.from("vehicle_deliveries").select("vehicle_id").in("status", ACTIVE_DELIVERY_STATUSES),
+    ]);
+    const blocked = new Set((activeDeliveries ?? []).map((d: any) => d.vehicle_id));
+    setVehicles((vs ?? []).filter((v: any) => !blocked.has(v.id)));
+  };
   useEffect(() => {
     load();
-    supabase.from("vehicles").select("id,plate,brand,model").order("plate").then(({ data }) => setVehicles(data ?? []));
+    loadEligibleVehicles();
   }, []);
 
   const canManage = role === "root" || role === "coordinador";
