@@ -29,9 +29,19 @@ function DeliveriesList() {
       .order("created_at", { ascending: false })
       .then(({ data }) => setRows(data ?? []));
   };
+  const loadEligibleVehicles = async () => {
+    // Only available vehicles AND no active delivery (active = not cancelado/cerrado)
+    const ACTIVE_DELIVERY_STATUSES = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"] as const;
+    const [{ data: vs }, { data: activeDeliveries }] = await Promise.all([
+      supabase.from("vehicles").select("id,plate,brand,model,status").eq("status", "disponible").order("plate"),
+      supabase.from("vehicle_deliveries").select("vehicle_id").in("status", ACTIVE_DELIVERY_STATUSES),
+    ]);
+    const blocked = new Set((activeDeliveries ?? []).map((d: any) => d.vehicle_id));
+    setVehicles((vs ?? []).filter((v: any) => !blocked.has(v.id)));
+  };
   useEffect(() => {
     load();
-    supabase.from("vehicles").select("id,plate,brand,model").order("plate").then(({ data }) => setVehicles(data ?? []));
+    loadEligibleVehicles();
   }, []);
 
   const canManage = role === "root" || role === "coordinador";
@@ -39,6 +49,19 @@ function DeliveriesList() {
   const create = async () => {
     if (!pickVehicle || !user) { toast.error("Selecciona un vehículo"); return; }
     setCreating(true);
+    // Re-validate eligibility right before insert (avoid race with another coordinator)
+    const ACTIVE = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"] as const;
+    const [{ data: vCheck }, { count: activeCount }] = await Promise.all([
+      supabase.from("vehicles").select("status").eq("id", pickVehicle).single(),
+      supabase.from("vehicle_deliveries").select("id", { count: "exact", head: true }).eq("vehicle_id", pickVehicle).in("status", ACTIVE),
+    ]);
+    if (vCheck?.status !== "disponible" || (activeCount ?? 0) > 0) {
+      setCreating(false);
+      toast.error("Ese vehículo ya no es elegible (no disponible o con entrega activa).");
+      setPickVehicle("");
+      loadEligibleVehicles();
+      return;
+    }
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
       vehicle_id: pickVehicle, created_by: user.id, status: "evidencias_pendientes",
     }).select("id,vehicles(plate)").single();
@@ -63,8 +86,10 @@ function DeliveriesList() {
           <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
             <div className="flex-1 space-y-1.5">
               <label className="text-xs">Vehículo a entregar</label>
-              <Select value={pickVehicle} onValueChange={setPickVehicle}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar vehículo…" /></SelectTrigger>
+              <Select value={pickVehicle} onValueChange={setPickVehicle} disabled={vehicles.length === 0}>
+                <SelectTrigger>
+                  <SelectValue placeholder={vehicles.length === 0 ? "Sin vehículos elegibles (disponibles y libres)" : "Seleccionar vehículo…"} />
+                </SelectTrigger>
                 <SelectContent>
                   {vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</SelectItem>)}
                 </SelectContent>

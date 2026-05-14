@@ -13,6 +13,7 @@ function EvidencePage() {
   useEffect(() => {
     supabase.from("vehicle_evidence")
       .select("*, vehicles(plate)")
+      .eq("active", true)
       .order("created_at", { ascending: false })
       .limit(60)
       .then(({ data }) => setRows(data ?? []));
