@@ -1,0 +1,36 @@
+name: MarTrack IA - Deploy Demo
+
+on:
+  push:
+    branches:
+      - dev
+      - staging
+      - main
+
+jobs:
+  deploy-dev:
+    if: github.ref_name == 'dev'
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy DEV
+        run: echo "Desplegando MarTrack IA en DESARROLLO"
+
+  deploy-staging:
+    if: github.ref_name == 'staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy STAGING
+        run: echo "Desplegando MarTrack IA en PREPRODUCCIÓN"
+
+  deploy-production:
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy PROD
+        run: echo "Desplegando MarTrack IA en PRODUCCIÓN"
