@@ -73,8 +73,10 @@ function DeliveriesList() {
           <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
             <div className="flex-1 space-y-1.5">
               <label className="text-xs">Vehículo a entregar</label>
-              <Select value={pickVehicle} onValueChange={setPickVehicle}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar vehículo…" /></SelectTrigger>
+              <Select value={pickVehicle} onValueChange={setPickVehicle} disabled={vehicles.length === 0}>
+                <SelectTrigger>
+                  <SelectValue placeholder={vehicles.length === 0 ? "Sin vehículos elegibles (disponibles y libres)" : "Seleccionar vehículo…"} />
+                </SelectTrigger>
                 <SelectContent>
                   {vehicles.map((v) => <SelectItem key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</SelectItem>)}
                 </SelectContent>
