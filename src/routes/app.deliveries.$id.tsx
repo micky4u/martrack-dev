@@ -46,17 +46,31 @@ function DeliveryDetail() {
     } else {
       setSignature(null);
     }
-    // Two-step (no FK between user_roles and profiles -> embed returns nothing)
-    const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "supervisor");
-    const ids = (roleRows ?? []).map((r: any) => r.user_id);
-    if (ids.length) {
-      const { data: profs } = await supabase.from("profiles")
-        .select("id,email,full_name,active,position,municipality_id,municipalities(name)")
-        .in("id", ids).eq("active", true).order("full_name");
-      setSupervisors((profs ?? []).map((p: any) => ({ user_id: p.id, profiles: p })));
-    } else {
-      setSupervisors([]);
-    }
+    // Load all active profiles, then resolve roles via edge function (RLS on user_roles
+    // hides other users' rows for coordinador/gerencia, so we cannot query it directly).
+    const { data: profs } = await supabase.from("profiles")
+      .select("id,email,full_name,active,position,municipality_id,municipalities(name)")
+      .eq("active", true).order("full_name");
+    const profList = profs ?? [];
+    let supervisorIds = new Set<string>();
+    // Try direct query first (works for root and for the user's own row).
+    const { data: ownRoles } = await supabase.from("user_roles").select("user_id,role").eq("role", "supervisor");
+    (ownRoles ?? []).forEach((r: any) => supervisorIds.add(r.user_id));
+    // Fallback / completion via edge function (uses service role to read all roles).
+    try {
+      const ids = profList.map((p: any) => p.id);
+      if (ids.length) {
+        const { data: ov } = await supabase.functions.invoke("manage-user-access", {
+          body: { action: "list_access_overview", ids },
+        });
+        const users = (ov as any)?.users ?? [];
+        for (const u of users) if (u.role === "supervisor") supervisorIds.add(u.id);
+      }
+    } catch { /* ignore – fallback to direct query result */ }
+    const list = profList
+      .filter((p: any) => supervisorIds.has(p.id))
+      .map((p: any) => ({ user_id: p.id, profiles: p }));
+    setSupervisors(list);
   };
   useEffect(() => { load(); }, [id]);
 
