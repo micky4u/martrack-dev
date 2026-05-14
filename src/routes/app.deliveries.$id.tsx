@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth-context";
-import { ArrowLeft, PenLine, X, RotateCcw, Save } from "lucide-react";
+import { ArrowLeft, PenLine, X, RotateCcw, Save, Upload, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { logAudit, logChange } from "@/lib/audit";
 import {
@@ -40,10 +40,23 @@ function DeliveryDetail() {
       setEvidence(ev ?? []);
     }
     const { data: sig } = await supabase.from("delivery_signatures").select("*").eq("delivery_id", id).maybeSingle();
-    setSignature(sig);
-    const { data: roleRows } = await supabase.from("user_roles")
-      .select("user_id, profiles!inner(id,email,full_name,active)").eq("role", "supervisor");
-    setSupervisors((roleRows ?? []).filter((s: any) => s.profiles?.active));
+    if (sig) {
+      const { data: signed } = await supabase.storage.from("signatures").createSignedUrl(sig.storage_path, 600);
+      setSignature({ ...sig, signedUrl: signed?.signedUrl ?? null });
+    } else {
+      setSignature(null);
+    }
+    // Two-step (no FK between user_roles and profiles -> embed returns nothing)
+    const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", "supervisor");
+    const ids = (roleRows ?? []).map((r: any) => r.user_id);
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles")
+        .select("id,email,full_name,active,position,municipality_id,municipalities(name)")
+        .in("id", ids).eq("active", true).order("full_name");
+      setSupervisors((profs ?? []).map((p: any) => ({ user_id: p.id, profiles: p })));
+    } else {
+      setSupervisors([]);
+    }
   };
   useEffect(() => { load(); }, [id]);
 
@@ -138,9 +151,25 @@ function DeliveryDetail() {
             </Link>
           </p>
         </div>
-        <div className="flex gap-2">
-          {isSupervisor && d.status === "pendiente_firma" && (
-            <Button asChild><Link to="/app/deliveries/$id/sign" params={{ id }}><PenLine className="h-4 w-4 mr-1" />Firmar entrega</Link></Button>
+        <div className="flex gap-2 flex-wrap">
+          {isSupervisor && !closed && !cancelled && (
+            <Button asChild variant="outline">
+              <Link to="/app/vehicles/$id" params={{ id: d.vehicle_id }}>
+                <Upload className="h-4 w-4 mr-1" />Subir evidencias
+              </Link>
+            </Button>
+          )}
+          {isSupervisor && !closed && !cancelled && d.status !== "firmado" && (
+            <Button asChild>
+              <Link to="/app/deliveries/$id/sign" params={{ id }}>
+                <PenLine className="h-4 w-4 mr-1" />Firmar aceptación
+              </Link>
+            </Button>
+          )}
+          {isSupervisor && d.status === "firmado" && (
+            <Button onClick={() => updateStatus("cerrado", { closed_at: new Date().toISOString() }, "asignacion_cerrada")}>
+              <CheckCircle2 className="h-4 w-4 mr-1" />Finalizar asignación
+            </Button>
           )}
           {isRoot && (closed || cancelled) && (
             <Button variant="outline" onClick={reopen}><RotateCcw className="h-4 w-4 mr-1" />Reabrir</Button>
@@ -183,14 +212,30 @@ function DeliveryDetail() {
             <div className="border-t border-border pt-4 space-y-3">
               <div className="space-y-1.5">
                 <label className="text-xs">Asignar / cambiar supervisor</label>
-                <Select value={d.supervisor_id ?? ""} onValueChange={assignSupervisor} disabled={evCount === 0}>
-                  <SelectTrigger><SelectValue placeholder={evCount === 0 ? "Adjunta evidencias antes" : "Selecciona supervisor"} /></SelectTrigger>
-                  <SelectContent>
-                    {supervisors.map((s: any) => (
-                      <SelectItem key={s.user_id} value={s.user_id}>{s.profiles.full_name || s.profiles.email}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {supervisors.length === 0 ? (
+                  <div className="text-xs rounded-md border border-dashed border-border p-3 text-muted-foreground">
+                    No hay supervisores activos disponibles.{" "}
+                    <Link to="/app/employees/new" className="underline underline-offset-4 text-foreground">
+                      Crea o activa un empleado con perfil supervisor
+                    </Link>.
+                  </div>
+                ) : (
+                  <Select value={d.supervisor_id ?? ""} onValueChange={assignSupervisor} disabled={evCount === 0}>
+                    <SelectTrigger><SelectValue placeholder={evCount === 0 ? "Adjunta evidencias antes" : "Selecciona supervisor"} /></SelectTrigger>
+                    <SelectContent>
+                      {supervisors.map((s: any) => {
+                        const p = s.profiles;
+                        const meta = [p.position, p.municipalities?.name, p.email].filter(Boolean).join(" · ");
+                        return (
+                          <SelectItem key={s.user_id} value={s.user_id}>
+                            <span className="font-medium">{p.full_name || p.email}</span>
+                            {meta && <span className="text-muted-foreground"> · {meta}</span>}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               {d.status === "firmado" && (
                 <Button variant="outline" onClick={() => updateStatus("cerrado", { closed_at: new Date().toISOString() })}>Cerrar entrega</Button>
@@ -230,8 +275,9 @@ function DeliveryDetail() {
           {signature && (
             <div className="mt-4 border-t border-border pt-3">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Firma</div>
-              <img src={supabase.storage.from("signatures").getPublicUrl(signature.storage_path).data.publicUrl}
-                alt="firma" className="border border-border rounded bg-white" />
+              {signature.signedUrl
+                ? <img src={signature.signedUrl} alt="firma" className="border border-border rounded bg-white" />
+                : <div className="text-xs text-muted-foreground">No tienes permiso para visualizar esta firma.</div>}
             </div>
           )}
         </Card>

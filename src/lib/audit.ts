@@ -8,8 +8,9 @@ export async function logAudit(opts: {
   metadata?: Record<string, unknown>;
 }) {
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return; // policy now requires user_id = auth.uid(); skip if not signed in
   await supabase.from("audit_log").insert({
-    user_id: user?.id ?? null,
+    user_id: user.id,
     entity_type: opts.entity_type,
     entity_id: opts.entity_id ?? null,
     action: opts.action,

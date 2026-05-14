@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth-context";
 import { Upload, Plus, ArrowLeft, Pencil, CheckCircle2, XCircle, Trash2 } from "lucide-react";
@@ -24,18 +25,53 @@ function VehicleDetail() {
   const [evidence, setEvidence] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [supervisors, setSupervisors] = useState<any[]>([]);
+  const [responsible, setResponsible] = useState<any>(null);
+  const [assigning, setAssigning] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [desc, setDesc] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    const [{ data: vd }, { data: ed }, { data: hd }, { data: dd }] = await Promise.all([
+    const [{ data: vd }, { data: ed }, { data: hd }, { data: dd }, { data: roles }] = await Promise.all([
       supabase.from("vehicles").select("*, municipalities(name)").eq("id", id).single(),
       supabase.from("vehicle_evidence").select("*").eq("vehicle_id", id).order("created_at",{ascending:false}),
       supabase.from("audit_log").select("*").eq("entity_type","vehicle").eq("entity_id",id).order("created_at",{ascending:false}).limit(20),
-      supabase.from("vehicle_deliveries").select("id,status,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
+      supabase.from("vehicle_deliveries").select("id,status,supervisor_id,created_at").eq("vehicle_id",id).order("created_at",{ascending:false}),
+      supabase.from("user_roles").select("user_id").eq("role","supervisor"),
     ]);
     setV(vd); setEvidence(ed ?? []); setHistory(hd ?? []); setDeliveries(dd ?? []);
+    const supIds = (roles ?? []).map((r: any) => r.user_id);
+    if (supIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles").select("id,full_name,email,position")
+        .in("id", supIds).eq("active", true).order("full_name");
+      setSupervisors(profs ?? []);
+    } else { setSupervisors([]); }
+    if (vd?.responsible_user_id) {
+      const { data: rp } = await supabase
+        .from("profiles").select("id,full_name,email,position")
+        .eq("id", vd.responsible_user_id).maybeSingle();
+      setResponsible(rp);
+    } else { setResponsible(null); }
+  };
+
+  const assignSupervisor = async (newId: string | null) => {
+    setAssigning(true);
+    const before = { responsible_user_id: v.responsible_user_id, status: v.status };
+    const newStatus = newId ? (v.status === "disponible" ? "asignado" : v.status) : v.status;
+    const { error } = await supabase.from("vehicles")
+      .update({ responsible_user_id: newId, status: newStatus }).eq("id", id);
+    setAssigning(false);
+    if (error) { toast.error(error.message); return; }
+    await logAudit({
+      entity_type: "vehicle", entity_id: id,
+      action: newId ? "supervisor_asignado" : "supervisor_desasignado",
+      description: newId ? `Supervisor asignado al vehículo ${v.plate}` : `Supervisor retirado del vehículo ${v.plate}`,
+      metadata: { before, after: { responsible_user_id: newId, status: newStatus } } as never,
+    });
+    toast.success(newId ? "Supervisor asignado" : "Supervisor retirado");
+    load();
   };
 
   useEffect(() => { load(); }, [id]);
@@ -54,7 +90,7 @@ function VehicleDetail() {
         file_name: file.name, mime_type: file.type, description: desc || null,
         kind: isImg ? "photo" : "document",
       });
-      await logAudit({ entity_type: "vehicle", entity_id: id, action: "evidence_upload", description: `Evidencia subida: ${file.name}` });
+      await logAudit({ entity_type: "vehicle", entity_id: id, action: "evidencia_subida", description: `Evidencia subida: ${file.name}` });
     }
     setUploading(false); setDesc(""); if (fileRef.current) fileRef.current.value = "";
     toast.success("Evidencias subidas");
@@ -72,8 +108,32 @@ function VehicleDetail() {
     load();
   };
 
+  const purgeEvidence = async (ev: any) => {
+    if (!confirm(`Eliminar definitivamente "${ev.file_name}"? Se borrará el archivo y el registro.`)) return;
+    const { error: sErr } = await supabase.storage.from(ev.bucket).remove([ev.storage_path]);
+    if (sErr) { toast.error(`Storage: ${sErr.message}`); return; }
+    const { error: dErr } = await supabase.from("vehicle_evidence").delete().eq("id", ev.id);
+    if (dErr) { toast.error(dErr.message); return; }
+    await logAudit({
+      entity_type: "evidence", entity_id: ev.id, action: "evidencia_purgada",
+      description: `Eliminación definitiva: ${ev.file_name} (${ev.bucket}/${ev.storage_path})`,
+    });
+    toast.success("Evidencia eliminada definitivamente");
+    load();
+  };
+
   const startDelivery = async () => {
     if (!user) return;
+    if (v?.status !== "disponible") {
+      toast.error("Solo se puede iniciar entrega de vehículos disponibles.");
+      return;
+    }
+    const ACTIVE = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"] as const;
+    const hasActive = deliveries.some((d: any) => (ACTIVE as readonly string[]).includes(d.status));
+    if (hasActive) {
+      toast.error("Este vehículo ya tiene una entrega activa.");
+      return;
+    }
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
       vehicle_id: id, created_by: user.id, status: "evidencias_pendientes",
     }).select("id").single();
@@ -85,6 +145,11 @@ function VehicleDetail() {
   if (!v) return <div className="text-sm text-muted-foreground">Cargando…</div>;
 
   const canEdit = role === "root" || role === "coordinador";
+  const isAssignedSupervisor = role === "supervisor" && (
+    v.responsible_user_id === user?.id ||
+    deliveries.some((dd: any) => dd.supervisor_id === user?.id)
+  );
+  const canUploadEvidence = canEdit || isAssignedSupervisor;
   const publicUrl = (b: string, p: string) => supabase.storage.from(b).getPublicUrl(p).data.publicUrl;
 
   return (
@@ -106,7 +171,7 @@ function VehicleDetail() {
               <Link to="/app/vehicles/$id/edit" params={{ id }}><Pencil className="h-4 w-4 mr-1" /> Editar</Link>
             </Button>
           )}
-          {canEdit && (
+          {canEdit && v.status === "disponible" && !deliveries.some((d: any) => ["borrador","evidencias_pendientes","pendiente_supervisor","pendiente_firma","firmado"].includes(d.status)) && (
             <Button onClick={startDelivery}><Plus className="h-4 w-4 mr-1" /> Iniciar entrega</Button>
           )}
         </div>
@@ -137,10 +202,55 @@ function VehicleDetail() {
               <Info l="Observaciones" v={v.observations || "—"} />
             </div>
           </Card>
+
+          <Card className="p-6 mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Supervisor responsable</div>
+                <div className="mt-0.5 text-sm">
+                  {responsible
+                    ? <>{responsible.full_name || responsible.email}{responsible.position ? ` · ${responsible.position}` : ""}</>
+                    : <span className="text-muted-foreground">— Sin asignar —</span>}
+                </div>
+              </div>
+              {canEdit && supervisors.length === 0 && (
+                <Link to="/app/employees/new" className="text-xs underline underline-offset-4">Crear supervisor</Link>
+              )}
+            </div>
+            {canEdit && (
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <Select
+                  value={v.responsible_user_id ?? "none"}
+                  onValueChange={(val) => assignSupervisor(val === "none" ? null : val)}
+                  disabled={assigning || supervisors.length === 0}
+                >
+                  <SelectTrigger className="sm:w-[420px]">
+                    <SelectValue placeholder={supervisors.length === 0 ? "No hay supervisores activos" : "Asignar supervisor…"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sin asignar —</SelectItem>
+                    {supervisors.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {(s.full_name || s.email)}{s.position ? ` · ${s.position}` : ""} · {s.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {v.responsible_user_id && (
+                  <Button variant="outline" size="sm" onClick={() => assignSupervisor(null)} disabled={assigning}>
+                    Quitar
+                  </Button>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Al asignar supervisor el vehículo pasa automáticamente a estado <strong>asignado</strong> si estaba disponible. Para formalizar la entrega con firma, usa <strong>Iniciar entrega</strong> arriba.
+            </p>
+          </Card>
         </TabsContent>
 
         <TabsContent value="evidence" className="mt-4 space-y-4">
-          {canEdit && (
+          {canUploadEvidence && (
             <Card className="p-4">
               <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
                 <div className="flex-1 space-y-1.5">
@@ -191,7 +301,7 @@ function VehicleDetail() {
                       {ev.is_valid ? <><XCircle className="h-3 w-3 mr-1"/>Marcar no válida</> : <><CheckCircle2 className="h-3 w-3 mr-1"/>Marcar válida</>}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-[11px]"
-                      onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                      onClick={() => updateEvidence(ev, { active: false }, "evidencia_eliminada")}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -207,7 +317,7 @@ function VehicleDetail() {
                   <li key={ev.id} className="flex items-center justify-between gap-2">
                     <a href={publicUrl(ev.bucket, ev.storage_path)} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">{ev.file_name}</a>
                     {canEdit && (
-                      <Button size="sm" variant="ghost" onClick={() => updateEvidence(ev, { active: false }, "evidencia_desactivada")}>
+                      <Button size="sm" variant="ghost" onClick={() => updateEvidence(ev, { active: false }, "evidencia_eliminada")}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )}
@@ -216,7 +326,29 @@ function VehicleDetail() {
               </ul>
             </Card>
           )}
-          {evidence.length === 0 && <p className="text-sm text-muted-foreground">Sin evidencias todavía</p>}
+          {role === "root" && evidence.filter(e => e.active === false).length > 0 && (
+            <Card className="p-4 border-dashed">
+              <div className="text-xs font-semibold mb-2 uppercase tracking-wider text-muted-foreground">Papelera (solo root)</div>
+              <ul className="space-y-1 text-sm">
+                {evidence.filter(e => e.active === false).map(ev => (
+                  <li key={ev.id} className="flex items-center justify-between gap-2">
+                    <span className="truncate text-muted-foreground">{ev.file_name}</span>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]"
+                        onClick={() => updateEvidence(ev, { active: true }, "evidencia_restaurada")}>
+                        Restaurar
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px] text-destructive"
+                        onClick={() => purgeEvidence(ev)}>
+                        Eliminar definitivamente
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {evidence.length === 0 && <p className="text-sm text-muted-foreground">No hay evidencias adjuntas todavía.</p>}
         </TabsContent>
 
         <TabsContent value="deliveries" className="mt-4">
