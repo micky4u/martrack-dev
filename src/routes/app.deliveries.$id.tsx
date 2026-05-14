@@ -159,15 +159,11 @@ function DeliveryDetail() {
               </Link>
             </Button>
           )}
-          {isSupervisor && !closed && !cancelled && evCount > 0 && d.status !== "firmado" && (
-            <Button onClick={async () => {
-              if (d.status !== "pendiente_firma") {
-                await supabase.from("vehicle_deliveries").update({ status: "pendiente_firma" }).eq("id", id);
-                await logAudit({ entity_type: "delivery", entity_id: id, action: "entrega_lista_para_firma", description: "Supervisor inició la firma" });
-              }
-              window.location.assign(`/app/deliveries/${id}/sign`);
-            }}>
-              <PenLine className="h-4 w-4 mr-1" />Firmar aceptación
+          {isSupervisor && !closed && !cancelled && d.status !== "firmado" && (
+            <Button asChild>
+              <Link to="/app/deliveries/$id/sign" params={{ id }}>
+                <PenLine className="h-4 w-4 mr-1" />Firmar aceptación
+              </Link>
             </Button>
           )}
           {isSupervisor && d.status === "firmado" && (
