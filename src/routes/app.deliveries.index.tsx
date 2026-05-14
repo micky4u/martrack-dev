@@ -49,6 +49,19 @@ function DeliveriesList() {
   const create = async () => {
     if (!pickVehicle || !user) { toast.error("Selecciona un vehículo"); return; }
     setCreating(true);
+    // Re-validate eligibility right before insert (avoid race with another coordinator)
+    const ACTIVE = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"] as const;
+    const [{ data: vCheck }, { count: activeCount }] = await Promise.all([
+      supabase.from("vehicles").select("status").eq("id", pickVehicle).single(),
+      supabase.from("vehicle_deliveries").select("id", { count: "exact", head: true }).eq("vehicle_id", pickVehicle).in("status", ACTIVE),
+    ]);
+    if (vCheck?.status !== "disponible" || (activeCount ?? 0) > 0) {
+      setCreating(false);
+      toast.error("Ese vehículo ya no es elegible (no disponible o con entrega activa).");
+      setPickVehicle("");
+      loadEligibleVehicles();
+      return;
+    }
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
       vehicle_id: pickVehicle, created_by: user.id, status: "evidencias_pendientes",
     }).select("id,vehicles(plate)").single();
