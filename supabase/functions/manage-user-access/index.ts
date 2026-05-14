@@ -160,10 +160,19 @@ Deno.serve(async (req) => {
 
       case "list_access_overview": {
         if (!isRoot && !isCoord && callerRole !== "gerencia") return json({ error: "Sin permisos" }, 403);
-        // Returns list of {id, email, last_sign_in_at, banned_until} from auth.users for given ids
         const ids: string[] = body.ids ?? [];
         if (!ids.length) return json({ users: [] });
-        const out: Array<{ id: string; last_sign_in_at: string | null; banned_until: string | null; email: string | null }> = [];
+        // Fetch all roles for these users (priority: root > gerencia > coordinador > supervisor)
+        const { data: roleRows } = await admin.from("user_roles").select("user_id,role").in("user_id", ids);
+        const priority: Record<string, number> = { root: 1, gerencia: 2, coordinador: 3, supervisor: 4 };
+        const rolesByUser = new Map<string, string>();
+        for (const r of (roleRows ?? []) as Array<{ user_id: string; role: string }>) {
+          const cur = rolesByUser.get(r.user_id);
+          if (!cur || (priority[r.role] ?? 99) < (priority[cur] ?? 99)) {
+            rolesByUser.set(r.user_id, r.role);
+          }
+        }
+        const out: Array<{ id: string; last_sign_in_at: string | null; banned_until: string | null; email: string | null; role: string | null }> = [];
         for (const id of ids) {
           const { data, error } = await admin.auth.admin.getUserById(id);
           if (!error && data?.user) {
@@ -172,7 +181,10 @@ Deno.serve(async (req) => {
               last_sign_in_at: data.user.last_sign_in_at ?? null,
               banned_until: (data.user as any).banned_until ?? null,
               email: data.user.email ?? null,
+              role: rolesByUser.get(id) ?? null,
             });
+          } else {
+            out.push({ id, last_sign_in_at: null, banned_until: null, email: null, role: rolesByUser.get(id) ?? null });
           }
         }
         return json({ users: out });
