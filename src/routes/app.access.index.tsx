@@ -65,7 +65,15 @@ function AccessAdmin() {
       supabase.from("user_roles").select("user_id,role"),
     ]);
     const munMap = new Map((muns ?? []).map((m: any) => [m.id, m.name]));
-    const roleMap = new Map((roles ?? []).map((r: any) => [r.user_id, r.role]));
+    // Priority: root > gerencia > coordinador > supervisor (in case a user has multiple roles)
+    const priority: Record<string, number> = { root: 1, gerencia: 2, coordinador: 3, supervisor: 4 };
+    const roleMap = new Map<string, string>();
+    for (const r of (roles ?? []) as Array<{ user_id: string; role: string }>) {
+      const cur = roleMap.get(r.user_id);
+      if (!cur || (priority[r.role] ?? 99) < (priority[cur] ?? 99)) {
+        roleMap.set(r.user_id, r.role);
+      }
+    }
     const base: Row[] = (profs ?? []).map((p: any) => ({
       id: p.id, full_name: p.full_name, email: p.email, position: p.position,
       municipality_name: p.municipality_id ? munMap.get(p.municipality_id) ?? null : null,
@@ -74,7 +82,8 @@ function AccessAdmin() {
       last_sign_in_at: null, banned_until: null,
     }));
 
-    // Enrich with auth metadata via edge function (root/coord/gerencia)
+    // Enrich with auth metadata + roles via edge function (role visibility falls back here
+    // because user_roles RLS only lets root read other users' rows).
     if (canRead && base.length) {
       const { data } = await supabase.functions.invoke("manage-user-access", {
         body: { action: "list_access_overview", ids: base.map(r => r.id) },
@@ -82,7 +91,11 @@ function AccessAdmin() {
       const map = new Map<string, any>(((data as any)?.users ?? []).map((u: any) => [u.id, u]));
       base.forEach(r => {
         const m = map.get(r.id);
-        if (m) { r.last_sign_in_at = m.last_sign_in_at; r.banned_until = m.banned_until; }
+        if (m) {
+          r.last_sign_in_at = m.last_sign_in_at;
+          r.banned_until = m.banned_until;
+          if (m.role) r.role = m.role;
+        }
       });
     }
     setRows(base);
