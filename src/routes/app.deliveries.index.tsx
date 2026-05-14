@@ -31,7 +31,7 @@ function DeliveriesList() {
   };
   const loadEligibleVehicles = async () => {
     // Only available vehicles AND no active delivery (active = not cancelado/cerrado)
-    const ACTIVE_DELIVERY_STATUSES = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"];
+    const ACTIVE_DELIVERY_STATUSES = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"] as const;
     const [{ data: vs }, { data: activeDeliveries }] = await Promise.all([
       supabase.from("vehicles").select("id,plate,brand,model,status").eq("status", "disponible").order("plate"),
       supabase.from("vehicle_deliveries").select("vehicle_id").in("status", ACTIVE_DELIVERY_STATUSES),
