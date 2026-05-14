@@ -171,7 +171,7 @@ function VehicleDetail() {
               <Link to="/app/vehicles/$id/edit" params={{ id }}><Pencil className="h-4 w-4 mr-1" /> Editar</Link>
             </Button>
           )}
-          {canEdit && (
+          {canEdit && v.status === "disponible" && !deliveries.some((d: any) => ["borrador","evidencias_pendientes","pendiente_supervisor","pendiente_firma","firmado"].includes(d.status)) && (
             <Button onClick={startDelivery}><Plus className="h-4 w-4 mr-1" /> Iniciar entrega</Button>
           )}
         </div>
