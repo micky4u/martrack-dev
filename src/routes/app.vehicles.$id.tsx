@@ -124,6 +124,16 @@ function VehicleDetail() {
 
   const startDelivery = async () => {
     if (!user) return;
+    if (v?.status !== "disponible") {
+      toast.error("Solo se puede iniciar entrega de vehículos disponibles.");
+      return;
+    }
+    const ACTIVE = ["borrador", "evidencias_pendientes", "pendiente_supervisor", "pendiente_firma", "firmado"] as const;
+    const hasActive = deliveries.some((d: any) => (ACTIVE as readonly string[]).includes(d.status));
+    if (hasActive) {
+      toast.error("Este vehículo ya tiene una entrega activa.");
+      return;
+    }
     const { data, error } = await supabase.from("vehicle_deliveries").insert({
       vehicle_id: id, created_by: user.id, status: "evidencias_pendientes",
     }).select("id").single();
