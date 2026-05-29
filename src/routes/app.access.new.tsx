@@ -34,7 +34,7 @@ function NewAccess() {
     license_expiry: "", observations: "",
     // access
     email: "", password: "", password2: "",
-    role: "supervisor", access_status: "active",
+    role: "empleado", access_status: "active",
     must_change_password: false,
   });
 
@@ -59,7 +59,7 @@ function NewAccess() {
     if (!form.password || form.password.length < 8) { toast.error("La contraseña debe tener al menos 8 caracteres."); return false; }
     if (form.password !== form.password2) { toast.error("Las contraseñas no coinciden."); return false; }
     if (!form.role) { toast.error("Selecciona un rol antes de crear el acceso."); return false; }
-    if (!isRoot && form.role !== "supervisor") { toast.error("Coordinador solo puede crear supervisores."); return false; }
+    if (!isRoot && form.role === "root") { toast.error("Coordinador no puede crear usuarios Root."); return false; }
     return true;
   };
 
@@ -187,7 +187,7 @@ function NewAccess() {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(isRoot ? ["root", "gerencia", "coordinador", "supervisor"] : ["supervisor"]).map(x => (
+                    {(isRoot ? ["root", "coordinador", "supervisor", "empleado"] : ["coordinador", "supervisor", "empleado"]).map(x => (
                       <SelectItem key={x} value={x}>{x}</SelectItem>
                     ))}
                   </SelectContent>

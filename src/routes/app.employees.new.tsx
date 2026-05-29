@@ -23,7 +23,7 @@ function NewEmployee() {
   const [form, setForm] = useState<any>({
     email: "", password: "", full_name: "", phone: "", position: "",
     municipality_id: "", hire_date: "", driving_license: "", observations: "",
-    role: "supervisor",
+    role: "empleado",
   });
   const [busy, setBusy] = useState(false);
 
@@ -86,8 +86,8 @@ function NewEmployee() {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {(myRole === "root"
-                  ? ["root", "gerencia", "coordinador", "supervisor"]
-                  : ["supervisor"]
+                  ? ["root", "coordinador", "supervisor", "empleado"]
+                  : ["coordinador", "supervisor", "empleado"]
                 ).map(x => <SelectItem key={x} value={x}>{x}</SelectItem>)}
               </SelectContent>
             </Select>

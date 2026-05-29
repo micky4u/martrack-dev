@@ -54,8 +54,7 @@ function AccessAdmin() {
 
   const isRoot = myRole === "root";
   const isCoord = myRole === "coordinador";
-  const isGerencia = myRole === "gerencia";
-  const canRead = isRoot || isCoord || isGerencia;
+  const canRead = isRoot || isCoord;
 
   const load = async () => {
     setLoading(true);
@@ -66,7 +65,7 @@ function AccessAdmin() {
     ]);
     const munMap = new Map((muns ?? []).map((m: any) => [m.id, m.name]));
     // Priority: root > gerencia > coordinador > supervisor (in case a user has multiple roles)
-    const priority: Record<string, number> = { root: 1, gerencia: 2, coordinador: 3, supervisor: 4 };
+    const priority: Record<string, number> = { root: 1, coordinador: 2, supervisor: 3, empleado: 4, gerencia: 99 };
     const roleMap = new Map<string, string>();
     for (const r of (roles ?? []) as Array<{ user_id: string; role: string }>) {
       const cur = roleMap.get(r.user_id);
@@ -180,7 +179,7 @@ function AccessAdmin() {
             {filtered.map((r) => {
               const acc = accessState(r);
               const tRole = r.role;
-              const canActOnRole = isRoot || (isCoord && tRole === "supervisor");
+              const canActOnRole = isRoot || (isCoord && tRole !== "root");
               const isSelf = user?.id === r.id;
               return (
                 <tr key={r.id} className="border-t border-border hover:bg-accent/40">
@@ -206,10 +205,7 @@ function AccessAdmin() {
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-right">
-                    {isGerencia ? (
-                      <Button asChild size="sm" variant="ghost"><Link to="/app/employees/$id" params={{ id: r.id }}>Ver</Link></Button>
-                    ) : (
-                      <DropdownMenu>
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="icon" variant="ghost" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
@@ -224,12 +220,12 @@ function AccessAdmin() {
                               <UserCog className="h-3.5 w-3.5 mr-2" /> Cambiar rol
                             </DropdownMenuItem>
                           )}
-                          {isRoot && (
+                          {(isRoot || (isCoord && tRole !== "root")) && (
                             <DropdownMenuItem onClick={() => { setTarget(r); setPw({ a: "", b: "" }); setDialog("password"); }}>
                               <KeyRound className="h-3.5 w-3.5 mr-2" /> Cambiar contraseña
                             </DropdownMenuItem>
                           )}
-                          {(isRoot || (isCoord && tRole === "supervisor")) && (
+                          {(isRoot || (isCoord && tRole !== "root")) && (
                             <DropdownMenuItem onClick={() => { setTarget(r); callApi({ action: "send_reset", target_user_id: r.id }, "Email de recuperación enviado"); }}>
                               <Mail className="h-3.5 w-3.5 mr-2" /> Enviar email de reset
                             </DropdownMenuItem>
@@ -266,7 +262,6 @@ function AccessAdmin() {
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    )}
                   </td>
                 </tr>
               );
@@ -310,12 +305,12 @@ function AccessAdmin() {
             <Select value={newRole} onValueChange={setNewRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(isRoot ? ["root", "gerencia", "coordinador", "supervisor"] : ["supervisor"]).map(x => (
+                {(isRoot ? ["root", "coordinador", "supervisor", "empleado"] : ["coordinador", "supervisor", "empleado"]).map(x => (
                   <SelectItem key={x} value={x}>{x}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {!isRoot && <p className="text-[11px] text-muted-foreground">Coordinador solo puede asignar rol supervisor.</p>}
+            {!isRoot && <p className="text-[11px] text-muted-foreground">Coordinador puede asignar coordinador, supervisor o empleado; no Root.</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>

@@ -49,7 +49,7 @@ function EditEmployee() {
 
   if (!form) return <div className="text-sm text-muted-foreground">Cargando…</div>;
   const canEdit = myRole === "root" || myRole === "coordinador";
-  const canEditRole = myRole === "root";
+  const canEditRole = myRole === "root" || myRole === "coordinador";
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,9 +67,14 @@ function EditEmployee() {
     if (error) { setBusy(false); toast.error(error.message); return; }
 
     if (canEditRole && newRole && newRole !== origRole) {
-      // Replace user role
-      await supabase.from("user_roles").delete().eq("user_id", id);
-      await supabase.from("user_roles").insert({ user_id: id, role: newRole as any });
+      const { data, error: roleErr } = await supabase.functions.invoke("manage-user-access", {
+        body: { action: "set_role", target_user_id: id, role: newRole },
+      });
+      if (roleErr || (data as any)?.error) {
+        setBusy(false);
+        toast.error((data as any)?.error ?? roleErr?.message ?? "No se pudo cambiar el rol");
+        return;
+      }
       await logAudit({ entity_type: "user", entity_id: id, action: "rol_cambiado", description: `Rol: ${origRole ?? "—"} → ${newRole}` });
     }
 
@@ -135,10 +140,10 @@ function EditEmployee() {
             <Select value={newRole} onValueChange={setNewRole} disabled={!canEditRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {["root", "gerencia", "coordinador", "supervisor"].map(x => <SelectItem key={x} value={x}>{x}</SelectItem>)}
+                {["root", "coordinador", "supervisor", "empleado"].filter(x => myRole === "root" || x !== "root").map(x => <SelectItem key={x} value={x}>{x}</SelectItem>)}
               </SelectContent>
             </Select>
-            {!canEditRole && <p className="text-[11px] text-muted-foreground">Solo root puede cambiar roles globales.</p>}
+            {!canEditRole && <p className="text-[11px] text-muted-foreground">Solo Root o Coordinador pueden cambiar roles. Coordinador no puede asignar Root.</p>}
           </Field>
           <div className="md:col-span-2">
             <Field label="Observaciones">
