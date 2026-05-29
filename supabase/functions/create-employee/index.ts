@@ -39,8 +39,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Email, password y nombre son obligatorios" }), { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } });
     }
 
-    // Coordinador cannot create root/gerencia
-    const safeRole = hasRoot ? (role || "supervisor") : "supervisor";
+    const allowedRoles = ["root", "coordinador", "supervisor", "empleado"];
+    if (role && !allowedRoles.includes(role)) {
+      return new Response(JSON.stringify({ error: "Rol inválido" }), { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } });
+    }
+    // Root puede crear cualquier rol. Coordinador puede crear coordinador, supervisor o empleado, pero no root.
+    const safeRole = hasRoot ? (role || "empleado") : (role === "coordinador" || role === "supervisor" || role === "empleado" ? role : "empleado");
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email, password,
