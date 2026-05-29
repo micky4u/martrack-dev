@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-
-export type AppRole = "root" | "gerencia" | "coordinador" | "supervisor";
+import { normalizeRole, type AppRole } from "@/lib/rbac";
 
 interface AuthCtx {
   user: User | null;
@@ -29,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .order("role")
       .limit(1)
       .maybeSingle();
-    setRole((data?.role as AppRole) ?? null);
+    setRole(normalizeRole(data?.role));
   };
 
   useEffect(() => {
