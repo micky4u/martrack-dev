@@ -13,18 +13,18 @@ import { Button } from "@/components/ui/button";
 type Item = { title: string; url: string; icon: typeof Car; roles: AppRole[] };
 
 const items: Item[] = [
-  { title: "Dashboard", url: "/app", icon: LayoutDashboard, roles: ["root", "gerencia", "coordinador", "supervisor"] },
-  { title: "Vehículos", url: "/app/vehicles", icon: Car, roles: ["root", "gerencia", "coordinador"] },
+  { title: "Dashboard", url: "/app", icon: LayoutDashboard, roles: ["root", "coordinador", "supervisor", "empleado"] },
+  { title: "Vehículos", url: "/app/vehicles", icon: Car, roles: ["root", "coordinador"] },
   { title: "Mis vehículos", url: "/app/vehicles", icon: Car, roles: ["supervisor"] },
-  { title: "Ayuntamientos", url: "/app/municipalities", icon: Building2, roles: ["root", "gerencia", "coordinador"] },
-  { title: "Entregas", url: "/app/deliveries", icon: ClipboardCheck, roles: ["root", "gerencia", "coordinador"] },
+  { title: "Ayuntamientos", url: "/app/municipalities", icon: Building2, roles: ["root", "coordinador"] },
+  { title: "Entregas", url: "/app/deliveries", icon: ClipboardCheck, roles: ["root", "coordinador"] },
   { title: "Mis asignaciones", url: "/app/deliveries", icon: ClipboardCheck, roles: ["supervisor"] },
-  { title: "Evidencias", url: "/app/evidence", icon: Image, roles: ["root", "gerencia", "coordinador"] },
+  { title: "Evidencias", url: "/app/evidence", icon: Image, roles: ["root", "coordinador"] },
   { title: "Mis evidencias", url: "/app/evidence", icon: Image, roles: ["supervisor"] },
-  { title: "Administración de accesos", url: "/app/access", icon: ShieldCheck, roles: ["root", "gerencia", "coordinador"] },
-  { title: "Empleados", url: "/app/employees", icon: UserCog, roles: ["root", "gerencia", "coordinador"] },
-  { title: "Mi perfil", url: "/app/profile", icon: User, roles: ["root", "gerencia", "coordinador", "supervisor"] },
-  { title: "Auditoría", url: "/app/audit", icon: History, roles: ["root", "gerencia"] },
+  { title: "Administración de accesos", url: "/app/access", icon: ShieldCheck, roles: ["root", "coordinador"] },
+  { title: "Empleados", url: "/app/employees", icon: UserCog, roles: ["root", "coordinador"] },
+  { title: "Mi perfil", url: "/app/profile", icon: User, roles: ["root", "coordinador", "supervisor", "empleado"] },
+  { title: "Auditoría", url: "/app/audit", icon: History, roles: ["root"] },
   { title: "Configuración", url: "/app/settings", icon: Settings, roles: ["root"] },
 ];
 

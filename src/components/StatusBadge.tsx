@@ -10,6 +10,8 @@ const map: Record<string, { label: string; cls: string }> = {
   pendiente_supervisor: { label: "Pendiente supervisor", cls: "bg-warning/20 text-warning-foreground border-warning/40" },
   pendiente_firma: { label: "Pendiente firma", cls: "bg-info/15 text-info border-info/30" },
   firmado: { label: "Firmado", cls: "bg-success/15 text-success border-success/30" },
+  dado_por_asignado: { label: "Dado por Asignado", cls: "bg-success/15 text-success border-success/30" },
+  cancelado: { label: "Cancelado", cls: "bg-destructive/15 text-destructive border-destructive/30" },
   cerrado: { label: "Cerrado", cls: "bg-foreground/10 text-foreground border-foreground/20" },
 };
 
