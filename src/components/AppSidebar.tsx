@@ -7,7 +7,8 @@ import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter,
 } from "@/components/ui/sidebar";
-import { useAuth, type AppRole } from "@/lib/auth-context";
+import { useAuth } from "@/lib/auth-context";
+import type { AppRole } from "@/lib/rbac";
 import { Button } from "@/components/ui/button";
 
 type Item = { title: string; url: string; icon: typeof Car; roles: AppRole[] };
