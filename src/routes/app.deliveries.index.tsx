@@ -117,7 +117,7 @@ function DeliveriesList() {
         assigned_employee_id: pickEmployee || null,
         created_by: user.id,
         status: "pendiente_firma",
-      })
+      } as any)
       .select("id,vehicles(plate)")
       .single();
 
