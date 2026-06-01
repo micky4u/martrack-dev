@@ -200,8 +200,6 @@ export type Database = {
       }
       vehicle_deliveries: {
         Row: {
-          assigned_employee_id: string | null
-          assignment_locked: boolean
           cancel_reason: string | null
           closed_at: string | null
           created_at: string
@@ -215,8 +213,6 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
-          assigned_employee_id?: string | null
-          assignment_locked?: boolean
           cancel_reason?: string | null
           closed_at?: string | null
           created_at?: string
@@ -230,8 +226,6 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
-          assigned_employee_id?: string | null
-          assignment_locked?: boolean
           cancel_reason?: string | null
           closed_at?: string | null
           created_at?: string
@@ -394,14 +388,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "root" | "gerencia" | "coordinador" | "supervisor" | "empleado"
+      app_role: "root" | "gerencia" | "coordinador" | "supervisor"
       delivery_status:
         | "borrador"
         | "evidencias_pendientes"
         | "pendiente_supervisor"
         | "pendiente_firma"
         | "firmado"
-        | "dado_por_asignado"
         | "cerrado"
         | "cancelado"
       fuel_type: "gasolina" | "diesel" | "hibrido" | "electrico" | "glp"
@@ -533,14 +526,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["root", "gerencia", "coordinador", "supervisor", "empleado"],
+      app_role: ["root", "gerencia", "coordinador", "supervisor"],
       delivery_status: [
         "borrador",
         "evidencias_pendientes",
         "pendiente_supervisor",
         "pendiente_firma",
         "firmado",
-        "dado_por_asignado",
         "cerrado",
         "cancelado",
       ],

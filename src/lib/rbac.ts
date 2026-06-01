@@ -39,7 +39,6 @@ export const ASSIGNMENT_ACTIVE_STATUSES = [
   "pendiente_supervisor",
   "pendiente_firma",
   "firmado",
-  "dado_por_asignado",
 ] as const;
 
 export function isAssignmentLocked(status: string | null | undefined, locked?: boolean | null) {
