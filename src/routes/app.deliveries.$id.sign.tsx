@@ -140,7 +140,7 @@ function SignPage() {
     const signedAt = new Date().toISOString();
     const { error: updErr } = await supabase
       .from("vehicle_deliveries")
-      .update({ status: "dado_por_asignado", signed_at: signedAt, assignment_locked: true })
+      .update({ status: "dado_por_asignado", signed_at: signedAt, assignment_locked: true } as any)
       .eq("id", id)
       .eq("supervisor_id", user.id)
       .in("status", ["pendiente_firma", "firmado"]);

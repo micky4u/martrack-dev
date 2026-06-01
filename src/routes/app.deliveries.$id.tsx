@@ -119,7 +119,7 @@ function DeliveryDetail() {
     if (locked) { toast.error("La asignación está bloqueada. Solo root puede reabrirla."); return; }
     const value = employeeId === "none" ? null : employeeId;
     const before = { assigned_employee_id: d.assigned_employee_id };
-    const { error } = await supabase.from("vehicle_deliveries").update({ assigned_employee_id: value }).eq("id", id);
+    const { error } = await supabase.from("vehicle_deliveries").update({ assigned_employee_id: value } as any).eq("id", id);
     if (error) { toast.error(error.message); return; }
     await logChange({ entity_type: "delivery", entity_id: id, action: "empleado_asignado", before, after: { assigned_employee_id: value }, fields: ["assigned_employee_id"] });
     toast.success("Empleado/equipo actualizado");
@@ -147,7 +147,7 @@ function DeliveryDetail() {
   };
 
   const reopen = async () => {
-    const { error } = await supabase.from("vehicle_deliveries").update({ status: "pendiente_firma", closed_at: null, assignment_locked: false }).eq("id", id);
+    const { error } = await supabase.from("vehicle_deliveries").update({ status: "pendiente_firma", closed_at: null, assignment_locked: false } as any).eq("id", id);
     if (error) { toast.error(error.message); return; }
     await logAudit({ entity_type: "delivery", entity_id: id, action: "asignacion_reabierta", description: `Asignación reabierta por root desde estado ${d.status}` });
     toast.success("Asignación reabierta");
