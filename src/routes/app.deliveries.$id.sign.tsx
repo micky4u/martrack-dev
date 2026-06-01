@@ -54,8 +54,9 @@ function SignPage() {
         .eq("id", id)
         .single();
       setD(data);
-      if (data?.assigned_employee_id) {
-        const { data: emp } = await supabase.from("profiles").select("id,email,full_name,position").eq("id", data.assigned_employee_id).maybeSingle();
+      const dd = data as any;
+      if (dd?.assigned_employee_id) {
+        const { data: emp } = await supabase.from("profiles").select("id,email,full_name,position").eq("id", dd.assigned_employee_id).maybeSingle();
         setAssignedEmployee(emp);
       }
     })();
